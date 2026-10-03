@@ -123,3 +123,16 @@ class CheckInEvent(Base):
     result: Mapped[str] = mapped_column(Text)
     reason: Mapped[str | None] = mapped_column(Text)
     scanned_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+class WaitlistEntry(Base):
+    __tablename__ = "waitlist_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(**UUID_PK)
+    ticket_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ticket_types.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    quantity: Mapped[int]
+    status: Mapped[str] = mapped_column(Text, server_default=text("'waiting'"))
+    order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("orders.id"))
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    offered_at: Mapped[datetime | None]

@@ -44,6 +44,7 @@ from app.schemas import (
     TicketTypeStats,
 )
 from app.services import inventory
+from app.services.waitlist import waiting_count
 
 router = APIRouter(tags=["events"])
 
@@ -74,15 +75,17 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
 async def _ticket_types(session: AsyncSession, event_id: uuid.UUID) -> list[TicketTypeOut]:
     rows = (
         await session.execute(
-            sa.select(TicketType).where(TicketType.event_id == event_id).order_by(TicketType.price_cents, TicketType.name)
+            sa.select(TicketType, waiting_count(TicketType.id))
+            .where(TicketType.event_id == event_id)
+            .order_by(TicketType.price_cents, TicketType.name)
         )
-    ).scalars().all()
+    ).all()
     return [
         TicketTypeOut(
             id=t.id, name=t.name, price_cents=t.price_cents, capacity=t.capacity,
-            sold=t.sold, remaining=max(t.capacity - t.sold, 0),
+            sold=t.sold, remaining=max(t.capacity - t.sold, 0), waiting=w,
         )
-        for t in rows
+        for t, w in rows
     ]
 
 
@@ -394,9 +397,15 @@ async def dashboard(
     event_id: uuid.UUID, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
 ) -> DashboardOut:
     event = await scannable_event(session, user, event_id)
-    types = (
-        await session.execute(sa.select(TicketType).where(TicketType.event_id == event_id).order_by(TicketType.price_cents))
-    ).scalars().all()
+    type_rows = (
+        await session.execute(
+            sa.select(TicketType, waiting_count(TicketType.id))
+            .where(TicketType.event_id == event_id)
+            .order_by(TicketType.price_cents)
+        )
+    ).all()
+    types = [t for t, _ in type_rows]
+    waiting_by_type = {t.id: w for t, w in type_rows}
     counts = (
         await session.execute(
             sa.select(Ticket.ticket_type_id, Ticket.status, sa.func.count())
@@ -417,6 +426,7 @@ async def dashboard(
                 id=t.id, name=t.name, price_cents=t.price_cents, capacity=t.capacity,
                 held=c.get("held", 0), confirmed=c.get("confirmed", 0), checked_in=c.get("checked_in", 0),
                 remaining=max(t.capacity - t.sold, 0),
+                waiting=waiting_by_type.get(t.id, 0),
             )
         )
     revenue = await session.scalar(

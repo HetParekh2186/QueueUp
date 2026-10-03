@@ -7,10 +7,14 @@ Two rules carry every function in this module:
    state transition is an ``UPDATE ... WHERE <expected state> RETURNING``, and
    "zero rows affected" is the losing path.
 
-2. **One lock order everywhere:** ticket_types -> orders -> tickets. Every writer that
-   needs more than one of these takes them in that order, so two writers can never
-   wait on each other in a cycle (no deadlocks). Confirm and check-in never lock a
-   ticket type at all.
+2. **One lock order everywhere:** ticket_types -> (waitlist) -> orders -> tickets.
+   Every writer that needs more than one of these takes the ticket type first, so two
+   writers can never wait on each other in a cycle (no deadlocks). Confirm and
+   check-in never lock a ticket type at all.
+
+3. **A freed seat goes to the waitlist first,** strictly first come, first served,
+   inside the same ticket-type lock that sells seats. So a freed seat can never be
+   handed to two people, and a walk-up buyer can never jump the line.
 
 All time comparisons use the database's ``now()``; app-server and browser clocks are
 never trusted for expiry.
@@ -30,7 +34,7 @@ from app import payments
 from app.config import settings
 from app.db import transaction
 from app.errors import DomainError
-from app.models import Event, Order, Ticket, TicketType
+from app.models import Event, Order, Ticket, TicketType, WaitlistEntry
 from app.notifications import Notification
 
 log = logging.getLogger("queueup.inventory")
@@ -106,11 +110,128 @@ async def expire_due_holds(session: AsyncSession, ticket_type_id: uuid.UUID) -> 
     ).scalars().all()
     if freed:
         await _adjust_sold(session, ticket_type_id, -len(freed))
+    # A waitlist offer that ran out loses its place; promotion moves to the next person.
+    await session.execute(
+        sa.update(WaitlistEntry)
+        .where(WaitlistEntry.order_id.in_(expired_orders), WaitlistEntry.status == "offered")
+        .values(status="expired")
+        .execution_options(**NO_SYNC)
+    )
     log.info(
         "holds expired",
         extra={"ctx": {"ticket_type_id": str(ticket_type_id), "orders": len(expired_orders), "seats": len(freed)}},
     )
     return len(freed)
+
+
+async def _counts(session: AsyncSession, ticket_type_id: uuid.UUID):
+    return (
+        await session.execute(
+            sa.select(TicketType.event_id, TicketType.capacity, TicketType.sold).where(TicketType.id == ticket_type_id)
+        )
+    ).one()
+
+
+async def promote_waitlist(session: AsyncSession, ticket_type_id: uuid.UUID) -> int:
+    """Hand free seats to the front of the waitlist as ordinary holds. Returns seats given.
+
+    Caller must hold the ticket type lock, which is what makes this safe: no buyer and
+    no other promotion can touch this type's seats until we commit. Strictly FIFO: if
+    the person at the front wants more seats than are free, nobody behind them skips
+    ahead; they all wait for the next freed seat.
+    """
+    event_status = await session.scalar(
+        sa.select(Event.status).join(TicketType, TicketType.event_id == Event.id).where(TicketType.id == ticket_type_id)
+    )
+    if event_status != "published":
+        return 0
+    promoted = 0
+    while True:
+        counts = await _counts(session, ticket_type_id)
+        free = counts.capacity - counts.sold
+        if free <= 0:
+            break
+        entry = (
+            await session.execute(
+                sa.select(WaitlistEntry.id, WaitlistEntry.user_id, WaitlistEntry.quantity)
+                .where(WaitlistEntry.ticket_type_id == ticket_type_id, WaitlistEntry.status == "waiting")
+                .order_by(WaitlistEntry.created_at, WaitlistEntry.id)
+                .limit(1)
+                .with_for_update()
+            )
+        ).first()
+        if entry is None or entry.quantity > free:
+            break
+        order = (
+            await session.execute(
+                sa.insert(Order)
+                .values(
+                    user_id=entry.user_id,
+                    event_id=counts.event_id,
+                    ticket_type_id=ticket_type_id,
+                    quantity=entry.quantity,
+                    status="pending",
+                    expires_at=sa.func.now() + timedelta(seconds=settings.waitlist_hold_seconds),
+                )
+                .returning(Order.id, Order.expires_at)
+            )
+        ).one()
+        await session.execute(
+            sa.insert(Ticket).values(
+                [
+                    {
+                        "ticket_type_id": ticket_type_id,
+                        "order_id": order.id,
+                        "user_id": entry.user_id,
+                        "status": "held",
+                        "expires_at": order.expires_at,
+                    }
+                    for _ in range(entry.quantity)
+                ]
+            )
+        )
+        await _adjust_sold(session, ticket_type_id, entry.quantity)
+        await session.execute(
+            sa.update(WaitlistEntry)
+            .where(WaitlistEntry.id == entry.id)
+            .values(status="offered", order_id=order.id, offered_at=sa.func.now())
+            .execution_options(**NO_SYNC)
+        )
+        promoted += entry.quantity
+        log.info(
+            "waitlist promoted",
+            extra={"ctx": {"ticket_type_id": str(ticket_type_id), "order_id": str(order.id), "seats": entry.quantity}},
+        )
+    return promoted
+
+
+async def settle(session: AsyncSession, ticket_type_id: uuid.UUID) -> list[Notification]:
+    """Expire overdue holds and promote the waitlist, in a transaction of its own.
+
+    Run before serving a buyer or a waitlist join, so freed seats reach the people
+    already in line first, and stay with them even if the request that triggered the
+    settle then fails (say, with sold out).
+    """
+    async with transaction(session):
+        tt = await _lock_ticket_type(session, ticket_type_id)
+        if tt is None:
+            return []
+        changed = await expire_due_holds(session, ticket_type_id)
+        changed += await promote_waitlist(session, ticket_type_id)
+        if not changed:
+            return []
+        counts = await _counts(session, ticket_type_id)
+    return [notify.seats(counts.event_id, ticket_type_id, counts.capacity, counts.sold), notify.order_changed(counts.event_id)]
+
+
+async def waitlist_waiting(session: AsyncSession, ticket_type_id: uuid.UUID) -> bool:
+    return bool(
+        await session.scalar(
+            sa.select(
+                sa.exists().where(WaitlistEntry.ticket_type_id == ticket_type_id, WaitlistEntry.status == "waiting")
+            )
+        )
+    )
 
 
 async def _duplicate(session: AsyncSession, idempotency_key: uuid.UUID, user_id: uuid.UUID) -> DomainError:
@@ -137,6 +258,7 @@ async def reserve(
     if not 1 <= quantity <= settings.max_tickets_per_order:
         raise DomainError(422, "invalid_quantity", max=settings.max_tickets_per_order)
 
+    settled = await settle(session, ticket_type_id)
     try:
         async with transaction(session):
             replay = await session.scalar(
@@ -158,8 +280,9 @@ async def reserve(
 
             sold = tt.sold - await expire_due_holds(session, tt.id)
             remaining = tt.capacity - sold
-            if remaining < quantity:
-                raise DomainError(409, "sold_out", remaining=remaining)
+            # People already in line get freed seats first; a walk-up buyer joins them.
+            if remaining < quantity or await waitlist_waiting(session, tt.id):
+                raise DomainError(409, "sold_out", remaining=remaining, waitlist=True)
 
             already_active = await session.scalar(
                 sa.select(sa.func.count())
@@ -226,7 +349,7 @@ async def reserve(
     return Result(
         order_id=order.id,
         expires_at=order.expires_at,
-        notifications=[notify.seats(event_id, ticket_type_id, capacity, new_sold), notify.order_changed(event_id)],
+        notifications=[*settled, notify.seats(event_id, ticket_type_id, capacity, new_sold), notify.order_changed(event_id)],
     )
 
 
@@ -292,6 +415,12 @@ async def confirm(
                 .values(status="confirmed", confirmed_at=sa.func.now(), expires_at=None)
                 .execution_options(**NO_SYNC)
             )
+            await session.execute(
+                sa.update(WaitlistEntry)
+                .where(WaitlistEntry.order_id == order.id, WaitlistEntry.status == "offered")
+                .values(status="claimed")
+                .execution_options(**NO_SYNC)
+            )
     except BaseException:
         payments.void(auth)
         raise
@@ -323,7 +452,15 @@ async def release(session: AsyncSession, *, order_id: uuid.UUID, user_id: uuid.U
                 .execution_options(**NO_SYNC)
             )
         ).scalars().all()
-        capacity, sold = await _adjust_sold(session, order.ticket_type_id, -len(freed))
+        await _adjust_sold(session, order.ticket_type_id, -len(freed))
+        await session.execute(
+            sa.update(WaitlistEntry)
+            .where(WaitlistEntry.order_id == order.id, WaitlistEntry.status == "offered")
+            .values(status="left")
+            .execution_options(**NO_SYNC)
+        )
+        await promote_waitlist(session, order.ticket_type_id)
+        _, capacity, sold = await _counts(session, order.ticket_type_id)
     log.info("hold released", extra={"ctx": {"order_id": str(order.id), "seats": len(freed)}})
     return Result(
         order_id=order.id,
@@ -362,7 +499,9 @@ async def refund(session: AsyncSession, *, order_id: uuid.UUID, user_id: uuid.UU
         # someone who attended is not allowed, so roll the whole refund back.
         if len(cancelled) != order.quantity:
             raise DomainError(409, "already_checked_in")
-        capacity, sold = await _adjust_sold(session, order.ticket_type_id, -len(cancelled))
+        await _adjust_sold(session, order.ticket_type_id, -len(cancelled))
+        await promote_waitlist(session, order.ticket_type_id)
+        _, capacity, sold = await _counts(session, order.ticket_type_id)
     payments.refund(order.payment_ref)
     log.info("order refunded", extra={"ctx": {"order_id": str(order.id)}})
     return Result(
@@ -391,7 +530,9 @@ async def set_capacity(
             .values(capacity=capacity)
             .execution_options(**NO_SYNC)
         )
-    return [notify.seats(tt.event_id, tt.id, capacity, sold)]
+        await promote_waitlist(session, tt.id)
+        _, capacity, sold = await _counts(session, tt.id)
+    return [notify.seats(tt.event_id, tt.id, capacity, sold), notify.order_changed(tt.event_id)]
 
 
 async def cancel_event(session: AsyncSession, *, event_id: uuid.UUID) -> list[Notification]:
@@ -441,6 +582,12 @@ async def cancel_event(session: AsyncSession, *, event_id: uuid.UUID) -> list[No
                 sa.update(Ticket)
                 .where(Ticket.ticket_type_id.in_(type_rows), Ticket.status.in_(("held", "confirmed")))
                 .values(status="cancelled", expires_at=None)
+                .execution_options(**NO_SYNC)
+            )
+            await session.execute(
+                sa.update(WaitlistEntry)
+                .where(WaitlistEntry.ticket_type_id.in_(type_rows), WaitlistEntry.status.in_(("waiting", "offered")))
+                .values(status="cancelled")
                 .execution_options(**NO_SYNC)
             )
             active = (

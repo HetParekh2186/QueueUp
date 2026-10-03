@@ -7,41 +7,52 @@ from datetime import timedelta
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import notifications as notify
 from app.db import transaction
 from app.emails import send_email
-from app.models import Event, Order, Ticket, TicketType, User
+from app.models import Event, Order, Ticket, TicketType, User, WaitlistEntry
 from app.notifications import Notification
-from app.services.inventory import ACTIVE_TICKET_STATUSES, _lock_ticket_type, expire_due_holds
+from app.services.inventory import (
+    ACTIVE_TICKET_STATUSES,
+    _lock_ticket_type,
+    expire_due_holds,
+    settle,
+)
 
 log = logging.getLogger("queueup.jobs")
 
 
 async def sweep_expired_holds(session: AsyncSession) -> list[Notification]:
-    """Return abandoned-cart seats to inventory.
+    """Return abandoned-cart seats to inventory, then to the waitlist.
 
-    One short transaction per ticket type, taking the type lock first (the global lock
-    order), then reusing the exact expiry routine reserve uses inline.
+    One short transaction per ticket type via ``settle``: take the type lock first (the
+    global lock order), expire overdue holds with the exact routine reserve uses inline,
+    then promote the waitlist. Also revisits any type where people are waiting while
+    seats sit free, so a missed promotion heals itself on the next sweep.
     """
-    due_types = (
-        await session.execute(
-            sa.select(Order.ticket_type_id)
-            .where(Order.status == "pending", Order.expires_at <= sa.func.now())
-            .distinct()
-        )
-    ).scalars().all()
+    due_types = set(
+        (
+            await session.execute(
+                sa.select(Order.ticket_type_id)
+                .where(Order.status == "pending", Order.expires_at <= sa.func.now())
+                .distinct()
+            )
+        ).scalars().all()
+    )
+    due_types |= set(
+        (
+            await session.execute(
+                sa.select(WaitlistEntry.ticket_type_id)
+                .join(TicketType, TicketType.id == WaitlistEntry.ticket_type_id)
+                .where(WaitlistEntry.status == "waiting", TicketType.sold < TicketType.capacity)
+                .distinct()
+            )
+        ).scalars().all()
+    )
     await session.rollback()
 
     out: list[Notification] = []
     for type_id in due_types:
-        async with transaction(session):
-            tt = await _lock_ticket_type(session, type_id)
-            if tt is None:
-                continue
-            freed = await expire_due_holds(session, type_id)
-        if freed:
-            out.append(notify.seats(tt.event_id, type_id, tt.capacity, tt.sold - freed))
-            out.append(notify.order_changed(tt.event_id))
+        out += await settle(session, type_id)
     return out
 
 

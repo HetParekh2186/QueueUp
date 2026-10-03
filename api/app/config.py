@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     refresh_token_days: int = 7
 
     hold_seconds: int = 600
+    # A seat offered from the waitlist is held longer: the person may not be online.
+    waitlist_hold_seconds: int = 900
+    max_waitlist_quantity: int = 4
     max_tickets_per_order: int = 10
     max_active_tickets_per_type: int = 10
 

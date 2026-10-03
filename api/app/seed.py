@@ -32,7 +32,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import SessionLocal, engine
 from app.demo import DEMO_DOMAIN
-from app.models import CheckInEvent, Event, Order, StaffAssignment, Ticket, TicketType, User
+from app.models import (
+    CheckInEvent,
+    Event,
+    Order,
+    StaffAssignment,
+    Ticket,
+    TicketType,
+    User,
+    WaitlistEntry,
+)
 from app.security import hash_password
 
 DEMO_PASSWORD = "queueup-demo"
@@ -123,6 +132,7 @@ class Batch:
     tickets: list = field(default_factory=list)
     staff: list = field(default_factory=list)
     scans: list = field(default_factory=list)
+    waitlist: list = field(default_factory=list)
 
 
 def _local(tz: str, days: int, hhmm: str) -> datetime:
@@ -289,6 +299,16 @@ def build(rng: random.Random, n_attendees: int, password_hash: str) -> tuple[Bat
                 else:
                     filler.order(buyer, qty, "paid")
 
+            # Sold out and still on sale: a few people are waiting in line for it.
+            if status == "published" and tt.sold >= capacity:
+                hopefuls = [a for a in attendees if a.id not in filler.held_by]
+                for k, person in enumerate(rng.sample(hopefuls, min(len(hopefuls), rng.randint(3, 6)))):
+                    b.waitlist.append(WaitlistEntry(
+                        ticket_type_id=tt.id, user_id=person.id, quantity=rng.choice([1, 1, 1, 2]),
+                        status="waiting", created_at=now - timedelta(hours=48) + timedelta(minutes=37 * k),
+                    ))
+                    stats["waiting"] = stats.get("waiting", 0) + 1
+
             # History that no longer occupies seats: abandoned carts and refunds.
             if status in ("published", "ended"):
                 for _ in range(rng.randint(1, max(1, capacity // 40))):
@@ -336,6 +356,8 @@ async def reset(session: AsyncSession) -> None:
         sa.or_(Ticket.ticket_type_id.in_(demo_types), Ticket.user_id.in_(demo_users))
     ).scalar_subquery()
 
+    await session.execute(sa.delete(WaitlistEntry).where(sa.or_(
+        WaitlistEntry.user_id.in_(demo_users), WaitlistEntry.ticket_type_id.in_(demo_types))))
     await session.execute(sa.delete(CheckInEvent).where(sa.or_(
         CheckInEvent.event_id.in_(demo_events), CheckInEvent.staff_id.in_(demo_users),
         CheckInEvent.ticket_id.in_(demo_tickets))))
@@ -367,7 +389,7 @@ async def seed(*, attendees: int = 300, do_reset: bool = False, password_hash: s
                 await reset(session)
             batch, stats = build(rng, attendees, password_hash or hash_password(DEMO_PASSWORD))
             # Insert parents before children (no ORM relationships, so stage the flushes).
-            for group in (batch.users, batch.events, batch.types, batch.staff, batch.orders, batch.tickets, batch.scans):
+            for group in (batch.users, batch.events, batch.types, batch.staff, batch.orders, batch.tickets, batch.scans, batch.waitlist):
                 session.add_all(group)
                 await session.flush()
     return stats
@@ -389,7 +411,7 @@ def main() -> None:
     print(
         f"Seeded {stats['users']} demo accounts, {stats['events']} events, {stats['orders']} orders, "
         f"{stats['tickets']} tickets ({stats['checked_in']} checked in, {stats['holds']} live holds, "
-        f"{stats['refunded']} refunded, {stats['expired']} abandoned carts)."
+        f"{stats['refunded']} refunded, {stats['expired']} abandoned carts), {stats.get('waiting', 0)} people on waitlists."
     )
     print(f"Log in as organizer{DEMO_DOMAIN}, staff1{DEMO_DOMAIN} or {stats['sample_attendee']}")
     print(f"Password for every demo account: {DEMO_PASSWORD}")

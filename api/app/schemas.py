@@ -135,6 +135,7 @@ class TicketTypeOut(Out):
     capacity: int
     sold: int
     remaining: int
+    waiting: int = 0  # people on the waitlist
 
 
 class EventSummary(Out):
@@ -190,6 +191,7 @@ class TicketTypeStats(BaseModel):
     confirmed: int
     checked_in: int
     remaining: int
+    waiting: int = 0
 
 
 class ScanOut(BaseModel):
@@ -280,3 +282,26 @@ class PublicStats(BaseModel):
     events_on_sale: int
     # True while seeded demo events exist, so the site can label the totals honestly.
     includes_demo: bool
+
+
+class WaitlistIn(BaseModel):
+    ticket_type_id: uuid.UUID
+    quantity: int = Field(default=1, ge=1, le=10)  # business cap enforced in the service
+
+
+class WaitlistOut(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    event_title: str
+    event_status: str
+    starts_at: datetime
+    timezone: str
+    ticket_type_id: uuid.UUID
+    ticket_type: str
+    quantity: int
+    # waiting | offered | claimed | expired | left | cancelled
+    status: str
+    position: int | None = None  # place in line while waiting
+    order_id: uuid.UUID | None = None  # the held seat once offered
+    offer_expires_at: datetime | None = None
+    created_at: datetime
