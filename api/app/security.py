@@ -35,11 +35,12 @@ def _encode(claims: dict, ttl: timedelta, secret: str) -> str:
     return jwt.encode({**claims, "iat": now, "exp": now + ttl}, secret, algorithm=ALGORITHM)
 
 
-def create_access_token(user_id: uuid.UUID, is_admin: bool) -> str:
-    # Only identity and the platform-level admin bit go in the token. Per-event roles
-    # (owner / staff) are looked up per request, so revoking staff access is immediate.
+def create_access_token(user_id: uuid.UUID) -> str:
+    # Only identity goes in the token. Roles (admin, organizer) and per-event access
+    # (owner / staff) are looked up on every request, so a role change or revoked
+    # staff access takes effect immediately rather than when the token expires.
     return _encode(
-        {"sub": str(user_id), "adm": is_admin, "typ": "access"},
+        {"sub": str(user_id), "typ": "access"},
         timedelta(minutes=settings.access_token_minutes),
         settings.secret_key,
     )

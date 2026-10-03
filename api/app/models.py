@@ -9,6 +9,8 @@ from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import DateTime
 
+from app.config import settings
+
 UUID_PK = {"primary_key": True, "server_default": text("gen_random_uuid()")}
 
 
@@ -23,9 +25,23 @@ class User(Base):
     email: Mapped[str] = mapped_column(CITEXT, unique=True)
     password_hash: Mapped[str] = mapped_column(Text)
     display_name: Mapped[str] = mapped_column(Text)
-    is_admin: Mapped[bool] = mapped_column(server_default=text("false"))
+    role: Mapped[str] = mapped_column(Text, server_default=text("'user'"))  # 'user' | 'organizer'
+    organizer_requested_at: Mapped[datetime | None]
     is_suspended: Mapped[bool] = mapped_column(server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+    @property
+    def is_admin(self) -> bool:
+        """Admin comes only from the ADMIN_EMAILS setting, never from stored data."""
+        return (self.email or "").lower() in settings.admin_email_set
+
+    @property
+    def effective_role(self) -> str:
+        return "admin" if self.is_admin else self.role
+
+    @property
+    def can_organize(self) -> bool:
+        return self.is_admin or self.role == "organizer"
 
 
 class Event(Base):

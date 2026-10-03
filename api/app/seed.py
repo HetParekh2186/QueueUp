@@ -223,12 +223,15 @@ def build(rng: random.Random, n_attendees: int, password_hash: str) -> tuple[Bat
     now = datetime.now(timezone.utc)
     b = Batch()
 
-    def user(email: str, name: str, created: datetime) -> User:
-        u = User(id=uuid.uuid4(), email=email, password_hash=password_hash, display_name=name, created_at=created)
+    def user(email: str, name: str, created: datetime, role: str = "user") -> User:
+        u = User(id=uuid.uuid4(), email=email, password_hash=password_hash, display_name=name,
+                 created_at=created, role=role)
         b.users.append(u)
         return u
 
-    organizers = {key: user(f"{key}{DEMO_DOMAIN}", name, now - timedelta(days=90)) for key, name in ORGANIZERS}
+    organizers = {
+        key: user(f"{key}{DEMO_DOMAIN}", name, now - timedelta(days=90), role="organizer") for key, name in ORGANIZERS
+    }
     staff = [
         user(f"staff{i}{DEMO_DOMAIN}", f"{rng.choice(FIRST)} {rng.choice(LAST)}", now - timedelta(days=80))
         for i in range(1, 9)
@@ -237,6 +240,9 @@ def build(rng: random.Random, n_attendees: int, password_hash: str) -> tuple[Bat
     for i in range(n_attendees):
         first, last = rng.choice(FIRST), rng.choice(LAST)
         attendees.append(user(f"{first}.{last}{i}{DEMO_DOMAIN}".lower(), f"{first} {last}", now - timedelta(days=rng.uniform(1, 75))))
+
+    for a in attendees[:3]:
+        a.organizer_requested_at = now - timedelta(hours=rng.uniform(2, 72))
 
     stats = {"events": 0, "orders": 0, "tickets": 0, "checked_in": 0, "holds": 0, "refunded": 0, "expired": 0}
 

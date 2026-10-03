@@ -22,6 +22,7 @@ from app.deps import (
     get_event_or_404,
     get_optional_user,
     managed_event,
+    require_organizer,
     scannable_event,
 )
 from app.errors import DomainError
@@ -189,7 +190,7 @@ async def get_event(
 
 @router.post("/events", response_model=EventOut, status_code=201)
 async def create_event(
-    body: EventIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+    body: EventIn, user: User = Depends(require_organizer), session: AsyncSession = Depends(get_session)
 ) -> EventOut:
     starts_at = to_utc(body.starts_at_local, body.timezone)
     ends_at = to_utc(body.ends_at_local, body.timezone) if body.ends_at_local else None
