@@ -1,0 +1,233 @@
+{
+  "seed": "9b51bade",
+  "resolved": {
+    "optionId": "assigned",
+    "buildPath": "code"
+  },
+  "title": "Choose QueueUp's visual world",
+  "question": "The roll assigned The Ballpark Scoreboard. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "The Ballpark Scoreboard",
+      "kicker": "THE ROLL",
+      "lineage": "hand-slotted steel scoreboards and incandescent bulb boards at old ballparks",
+      "thesis": "Every event is a live game: the board shows the count, and the count is never wrong.",
+      "palette": [
+        "#1f4a35",
+        "#f2efe6",
+        "#ffb000",
+        "#d23a2a",
+        "#0e1a14"
+      ],
+      "materials": [
+        "painted steel panels",
+        "white numeral plates",
+        "incandescent bulb matrix",
+        "stenciled caps"
+      ],
+      "viewport": "A full-width scoreboard: QUEUEUP across the header, a bulb-matrix counter dropping SEATS LEFT from 1 as 100 lit request bulbs fight for it, the final reading 1 IN, 99 OUT, then two plate buttons: HOST AN EVENT and FIND AN EVENT.",
+      "risk": "Can read as sports-themed novelty if the board decorates instead of carrying real counts.",
+      "raised": [
+        {
+          "from": "challenger-signboard",
+          "raise": "State is illumination: lit, dim, or dark bulbs carry every status, with no colored badges anywhere."
+        },
+        {
+          "from": "challenger-pushpin",
+          "raise": "Flat paint only, zero shadows or gradients; each section is anchored by one emblematic board object."
+        },
+        {
+          "from": "challenger-pattern",
+          "raise": "The committed outcome renders solid while the alternatives render dashed (the winning request lit, the 99 losers outlined)."
+        },
+        {
+          "from": "challenger-bricks",
+          "raise": "How it works is told by four oversized step numerals with almost no words."
+        },
+        {
+          "from": "challenger-scope",
+          "raise": "Every element sits on one measured cell module, the board's slot grid, with nothing placed by eye."
+        },
+        {
+          "from": "challenger-riso",
+          "raise": "Total ink discipline: exactly the board's four paints (green, plate white, bulb amber, out red) and nothing else."
+        }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Photo Finish",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "race-timing photo-finish strips and printed results sheets",
+      "thesis": "A hundred hands reach for one seat; the strip shows exactly who crossed first, by milliseconds.",
+      "palette": [
+        "#f4f1ea",
+        "#111111",
+        "#e10600",
+        "#7a7a7a"
+      ],
+      "materials": [
+        "slit-scan photo strip",
+        "thermal results paper",
+        "timing tape"
+      ],
+      "viewport": "A stretched slit-scan strip of 100 requests streaming past a red finish line, one crossing first; a printed results table beside it reads 1 RESERVED, 99 SOLD OUT with ms timings.",
+      "risk": "It topped my list, and it lands close to the familiar editorial-paper look, with the most drama on desktop."
+    },
+    {
+      "id": "challenger-scope",
+      "label": "Oscilloscope Bench",
+      "verdict": "declined",
+      "lineage": "CRT oscilloscope on a signal bench",
+      "thesis": "The race as a measured signal: 100 traces triggered, one locks still.",
+      "palette": [
+        "#0b0f0c",
+        "#4dff7a",
+        "#3a4a3f",
+        "#ffb000"
+      ],
+      "materials": [
+        "phosphor glass",
+        "etched graticule",
+        "detented knobs"
+      ],
+      "viewport": "A graticule with 100 request traces converging and one locking on trigger.",
+      "case": "Engineers identify with it, but attendees and organizers don't; it loses both axes for an audience of everyone.",
+      "risk": "Lands in the near-black, one-neon rut.",
+      "kept": "Every element measured against one grid module."
+    },
+    {
+      "id": "challenger-signboard",
+      "label": "Signboard Alley",
+      "verdict": "declined",
+      "lineage": "stacked Tokyo nightlife signboards",
+      "thesis": "Events as a glowing vertical index of nights out.",
+      "palette": [
+        "#0c0c10",
+        "#f5f5f0",
+        "#ff2e3b",
+        "#e8562a"
+      ],
+      "materials": [
+        "backlit panels",
+        "wet-street reflection"
+      ],
+      "viewport": "A spine of lit signs, one per event, reflected below.",
+      "case": "Fits attendees, but has nothing that explains no-oversell or the door.",
+      "risk": "Reads as a nightlife guide, not a ticketing system.",
+      "kept": "Live state rendered as illumination."
+    },
+    {
+      "id": "challenger-pushpin",
+      "label": "Push Pin Poster",
+      "verdict": "declined",
+      "lineage": "Push Pin Studios illustrated posters",
+      "thesis": "Every event as a flat-color illustrated poster.",
+      "palette": [
+        "#f3ead8",
+        "#ff5fa2",
+        "#1fb5a8",
+        "#f2a900",
+        "#111111"
+      ],
+      "materials": [
+        "flat candy fills",
+        "contour line art"
+      ],
+      "viewport": "One silhouette poster with event vignettes orbiting it.",
+      "case": "Charming for attendees, but it hides the mechanism.",
+      "risk": "Illustration-heavy; needs artwork we don't have.",
+      "kept": "Flat fills, zero shadows."
+    },
+    {
+      "id": "challenger-pattern",
+      "label": "Sewing Pattern",
+      "verdict": "declined",
+      "lineage": "home sewing pattern envelopes",
+      "thesis": "Ticket tiers as graded size lines on tissue.",
+      "palette": [
+        "#e9dcc0",
+        "#1a1a1a",
+        "#c8102e"
+      ],
+      "materials": [
+        "manila tissue",
+        "dashed cut lines"
+      ],
+      "viewport": "Nested dashed lines with the chosen one drawn solid.",
+      "case": "No audience link to ticketing.",
+      "risk": "Pure metaphor stretch.",
+      "kept": "Chosen state solid, alternatives dashed."
+    },
+    {
+      "id": "challenger-bricks",
+      "label": "Build Instructions",
+      "verdict": "declined",
+      "lineage": "brick toy instruction booklets",
+      "thesis": "Hosting an event as numbered assembly steps.",
+      "palette": [
+        "#9fd3f0",
+        "#111111",
+        "#d01012",
+        "#f6c800"
+      ],
+      "materials": [
+        "stud grid",
+        "exploded diagrams"
+      ],
+      "viewport": "Step 1 to 4 spreads with pieces dropping onto studs.",
+      "case": "Clear process for organizers, but it misses the live race.",
+      "risk": "Toy register undercuts trust in payments.",
+      "kept": "Oversized step numerals do the teaching."
+    },
+    {
+      "id": "challenger-riso",
+      "label": "Risograph System",
+      "verdict": "declined",
+      "lineage": "Riso spot-ink printing",
+      "thesis": "Event pages as misregistered gig prints.",
+      "palette": [
+        "#f4efe3",
+        "#ff48b0",
+        "#0078bf",
+        "#ffe800"
+      ],
+      "materials": [
+        "spot inks",
+        "halftone grain"
+      ],
+      "viewport": "Overprinted ink shapes with the product name in one spot color.",
+      "case": "Gig-culture fit, but no mechanism and a well-worn look.",
+      "risk": "A saturated trend.",
+      "kept": "A strict limit on the number of inks."
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": false
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A clean SaaS ticketing landing page, executed impeccably.",
+    "palette": [
+      "#ffffff",
+      "#0f172a",
+      "#4f46e5"
+    ],
+    "materials": [
+      "clean grid",
+      "product screenshots"
+    ],
+    "viewport": "Headline and subhead on the left, a product screenshot on the right, two buttons, then feature rows.",
+    "risk": "Indistinguishable from every other ticketing site by design."
+  },
+  "steer": true
+}

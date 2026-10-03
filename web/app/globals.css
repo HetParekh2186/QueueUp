@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+/*
+ * The Ballpark Scoreboard.
+ * Four paints and nothing else: scoreboard green (painted steel), plate white
+ * (enamel numeral plates), bulb amber (incandescent, means "live / lit"), and
+ * out red. Flat paint only: no shadows, no gradients. State is illumination.
+ */
+:root {
+  /* One module for the whole board: the slot pitch. Every gutter, column and
+     section rhythm on the landing page is a multiple of it. */
+  --m: 24px;
+
+  /* the board itself — identical in light and dark: it's painted steel */
+  --board: #1f4a35;
+  --board-deep: #12291d;
+  --board-rule: #2e5d46;
+  --board-text: #f2f3ec;
+  --board-muted: #a9c2b3;
+  --plate: #f2f3ec;
+  --plate-ink: #0f1d15;
+  --bulb: #ffb000;
+  --bulb-off: #0b1811;
+  --out: #e0442f;
+
+  /* app surfaces: daylight at the ballpark */
+  --paper: #e6eae2;
+  --card: #f6f7f2;
+  --ink: #0f1d15;
+  --muted: #4b5c51;
+  --line: #c3cdc2;
+  --accent: #1f4a35;
+  --accent-ink: #f2f3ec;
+  --ok: #17713f;
+  --warn: #9a6200;
+  --bad: #b8301f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* night game: the board's own steel becomes the ground, plates become the buttons */
+    --paper: #0c1711;
+    --card: #13241a;
+    --ink: #e8eee6;
+    --muted: #93a99b;
+    --line: #26402f;
+    --accent: #f2f3ec;
+    --accent-ink: #0f1d15;
+    --ok: #3ccf7a;
+    --warn: #ffb000;
+    --bad: #ff6a55;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-board: var(--board);
+  --color-board-deep: var(--board-deep);
+  --color-board-rule: var(--board-rule);
+  --color-board-text: var(--board-text);
+  --color-board-muted: var(--board-muted);
+  --color-plate: var(--plate);
+  --color-plate-ink: var(--plate-ink);
+  --color-bulb: var(--bulb);
+  --color-bulb-off: var(--bulb-off);
+  --color-out: var(--out);
+  --font-display: var(--font-shoulders);
+  --font-stencil: var(--font-stencil-face);
+  --font-sans: var(--font-barlow);
+  --font-mono: var(--font-jetbrains);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  caret-color: var(--bulb);
+}
+
+/* Browser surfaces carry the paint too. */
+::selection {
+  background: var(--bulb);
+  color: var(--plate-ink);
+}
+:focus-visible {
+  outline: 2px solid var(--bulb);
+  outline-offset: 2px;
+}
+a {
+  text-underline-offset: 0.2em;
+}
+html {
+  scrollbar-color: var(--board) var(--paper);
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--board);
+  border: 3px solid var(--paper);
+}
+
+/* Bolted slot rule on light surfaces: divides the two halves of a ticket or panel. */
+.slot-rule-light {
+  height: 10px;
+  background-image: radial-gradient(circle, var(--line) 2px, transparent 2.5px);
+  background-size: var(--m) 10px;
+  background-position: center;
+}
+
+/* Plate buttons: enamel plates bolted to the board. Square, stenciled, flat. */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-[3px] px-4 py-2.5 font-display text-base font-bold uppercase tracking-[0.06em] transition-[filter,background-color,border-color] duration-150 disabled:cursor-not-allowed disabled:opacity-45;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-accent-ink hover:brightness-125 active:brightness-95;
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-card text-ink hover:border-ink;
+}
+@utility input {
+  @apply w-full rounded-[3px] border border-line bg-card px-3 py-2 text-sm outline-none focus:border-ink;
+}
+@utility label {
+  @apply mb-1 block font-display text-sm font-bold uppercase tracking-[0.08em] text-muted;
+}
+@utility card {
+  @apply rounded-[4px] border border-line bg-card;
+}
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Landing board ------------------------------------------------------- */
+
+/* A bulb: off (dark socket), lit (amber), or out (dashed red outline). */
+.bulb {
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: var(--bulb-off);
+  outline: 1px solid color-mix(in oklab, var(--bulb) 16%, transparent);
+  outline-offset: -1px;
+  transition:
+    background-color 120ms cubic-bezier(0.16, 1, 0.3, 1),
+    outline-color 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bulb[data-state="lit"],
+.bulb[data-state="won"] {
+  background: var(--bulb);
+  outline-color: var(--bulb);
+}
+.bulb[data-state="won"] {
+  outline: 2px solid var(--plate);
+  outline-offset: 2px;
+}
+.bulb[data-state="out"] {
+  background: transparent;
+  outline: 1.5px dashed var(--out);
+  outline-offset: -2px;
+}
+
+/* A numeral plate: white enamel, dark numerals, flips on change. */
+.plate-num {
+  background: var(--plate);
+  color: var(--plate-ink);
+  font-family: var(--font-shoulders);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  border-radius: 3px;
+}
+@keyframes plate-flip {
+  0% {
+    transform: perspective(300px) rotateX(-75deg);
+    opacity: 0.2;
+  }
+  100% {
+    transform: perspective(300px) rotateX(0);
+    opacity: 1;
+  }
+}
+.plate-flip {
+  animation: plate-flip 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top center;
+}
+
+/* The bolted slot rule that divides board sections. */
+.slot-rule {
+  height: 10px;
+  background-image: radial-gradient(circle, var(--board-rule) 2px, transparent 2.5px);
+  background-size: var(--m) 10px;
+  background-position: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulb {
+    transition: none;
+  }
+  .plate-flip {
+    animation: none;
+  }
+}
+
+/* Section rhythm on the board, in modules. */
+.board-section {
+  padding-block: calc(var(--m) * 3);
+}
+@media (min-width: 1024px) {
+  .board-section {
+    padding-block: calc(var(--m) * 4);
+  }
+}
