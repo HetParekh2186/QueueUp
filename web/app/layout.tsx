@@ -21,8 +21,8 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 const CONTRACT = `<!--
 THESIS: QueueUp is a ballpark scoreboard, live and counted and never wrong. It refuses the SaaS headline-plus-screenshot hero.
 OWN-WORLD: Scoreboard-green painted steel fields, enamel-white numeral plates, amber incandescent bulbs, out-red dashed outlines. Big Shoulders stencil caps, Barlow text. Flat paint, zero shadows or gradients, state as illumination, one slot-grid module.
-STORY: Visitors watch 100 requests hit one seat and exactly one win, read the line score of every race QueueUp settles, learn the four steps, see real events on sale, then host or find an event.
-FIRST VIEWPORT: Full-width green board. Left: stencil headline and two equal plate buttons, HOST AN EVENT and FIND AN EVENT. Right: a 10x10 bulb matrix with plates SEATS LEFT / IN / OUT that replays the race once, with Run it again.
+STORY: Visitors read the offer, see the platform's real totals on the board, learn the four steps, see who it's for and real events on sale, then host or find an event. The 100-buyer race lives on /about.
+FIRST VIEWPORT: Full-width green board. Stencil headline "Run the door like a ballpark." with copy and two equal plate buttons, HOST AN EVENT and FIND AN EVENT. Below, a full-width board of three enamel numeral plates (tickets sold, checked in, events on sale) from GET /stats, flipping into place and refreshing every 10s.
 FORM: The Ballpark Scoreboard, candidate 4 of 7, seed 9b51bade.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 -->`;

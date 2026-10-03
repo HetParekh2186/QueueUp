@@ -37,6 +37,7 @@ export function Nav() {
   const links = (
     <>
       {link("/events", "Events")}
+      {link("/about", "How it works")}
       {user && link("/tickets", "My tickets")}
       {canOrganize(user) && link("/organizer", "Organize")}
       {user?.role === "admin" && link("/admin", "Admin")}

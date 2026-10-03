@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { AlertIcon, ArrowIcon, CheckIcon, CrossIcon } from "@/components/icons";
-import { Wordmark } from "@/components/Nav";
-import { RaceBoard } from "@/components/RaceBoard";
-import { PUBLIC_API_URL, serverApi } from "@/lib/api";
+import { BOARD_LINK, H2, PLATE_BTN, SiteFooter, SlotRule, WRAP } from "@/components/Board";
+import { type PublicStats, TonightBoard } from "@/components/TonightBoard";
+import { serverApi } from "@/lib/api";
 import { eventDay, eventTime } from "@/lib/format";
 import type { EventSummary } from "@/lib/types";
 
@@ -10,14 +10,6 @@ export const dynamic = "force-dynamic";
 
 const HOST_HREF = "/organizer/new";
 const FIND_HREF = "/events";
-
-/* Spacing in board modules (--m, the slot pitch). */
-const WRAP = "mx-auto max-w-6xl px-[calc(var(--m)*0.75)] sm:px-[var(--m)]";
-const H2 = "font-stencil text-[clamp(2.2rem,4.6vw,3.75rem)] font-extrabold uppercase leading-[0.92] [text-wrap:balance]";
-const PLATE_BTN =
-  "group flex items-center justify-between gap-2 rounded-[3px] bg-plate px-4 py-3.5 font-display text-lg font-extrabold uppercase tracking-[0.06em] text-plate-ink transition-colors hover:bg-white";
-const BOARD_LINK =
-  "inline-flex items-center gap-1.5 font-display text-base font-bold uppercase tracking-[0.1em] text-board-text underline decoration-bulb decoration-2 underline-offset-[6px] hover:text-bulb";
 
 /** Both paths get the same enamel plate: amber is reserved for "lit / live", never for a favourite. */
 function Ctas() {
@@ -35,55 +27,6 @@ function Ctas() {
   );
 }
 
-function SlotRule() {
-  return <div className={`slot-rule ${WRAP}`} aria-hidden />;
-}
-
-/** The board's two marks: a lit bulb (won) and a dashed out cell (lost), at matrix scale. */
-function Lit() {
-  return <span className="h-6 w-6 shrink-0 rounded-full bg-bulb" aria-hidden />;
-}
-function Out() {
-  return <span className="h-6 w-6 shrink-0 rounded-full outline outline-2 -outline-offset-2 outline-dashed outline-out" aria-hidden />;
-}
-
-const RACES = [
-  {
-    race: "Two buyers, one seat",
-    guard: "The ticket tier's row is locked while one buyer is served",
-    win: "Holds the seat",
-    lose: "Sold out",
-    code: 409,
-  },
-  {
-    race: "Paying as the hold runs out",
-    guard: "The hold must still be valid at the instant of the write",
-    win: "Ticket confirmed",
-    lose: "Hold expired, card voided",
-    code: 410,
-  },
-  {
-    race: "One QR, two doors",
-    guard: "The ticket must still be unscanned",
-    win: "Admitted",
-    lose: "Already in, with who and when",
-    code: 409,
-  },
-  {
-    race: "A double-clicked Reserve",
-    guard: "Each request carries a one-time key",
-    win: "One hold",
-    lose: "Gets that same hold back",
-    code: 409,
-  },
-  {
-    race: "A refund racing the door",
-    guard: "Every ticket on the order must still be unscanned",
-    win: "Refunded",
-    lose: "Already checked in",
-    code: 409,
-  },
-];
 
 const STEPS = [
   { n: 1, word: "Hold", line: "Ten minutes. The seat is yours." },
@@ -93,95 +36,45 @@ const STEPS = [
 ];
 
 export default async function Landing() {
-  const data = await serverApi<{ items: EventSummary[] }>("/events?limit=5");
+  const [data, stats] = await Promise.all([
+    serverApi<{ items: EventSummary[] }>("/events?limit=5"),
+    serverApi<PublicStats>("/stats"),
+  ]);
   const events = data?.items;
   const anyDemo = events?.some((e) => e.is_demo);
 
   return (
     <div className="bg-board text-board-text">
-      {/* ---------------------------------------------------------------- the race */}
-      <section
-        className={`${WRAP} grid items-center gap-[calc(var(--m)*2)] pb-[calc(var(--m)*3)] pt-[calc(var(--m)*2)] lg:grid-cols-[1.3fr_1fr] lg:pb-[calc(var(--m)*4)] lg:pt-[calc(var(--m)*3)]`}
-      >
-        <div>
-          <h1 className="font-stencil text-[clamp(3rem,5.4vw,4.75rem)] font-extrabold uppercase leading-[0.9] tracking-[-0.01em]">
-            <span className="block lg:whitespace-nowrap">One seat.</span>
-            <span className="block lg:whitespace-nowrap">A hundred hands.</span>
-            <span className="block text-bulb lg:whitespace-nowrap">Exactly one ticket.</span>
+      {/* ------------------------------------------------------------- the board */}
+      <section className={`${WRAP} pb-[calc(var(--m)*3)] pt-[calc(var(--m)*2)] lg:pb-[calc(var(--m)*4)] lg:pt-[calc(var(--m)*3)]`}>
+        <div className="grid items-end gap-[calc(var(--m)*1.5)] lg:grid-cols-[1.25fr_1fr] lg:gap-[calc(var(--m)*2.5)]">
+          <h1 className="font-stencil text-[clamp(3rem,6.4vw,5.5rem)] font-extrabold uppercase leading-[0.88] tracking-[-0.01em]">
+            <span className="block">Run the door</span>
+            <span className="block text-bulb">like a ballpark.</span>
           </h1>
-          <p className="mt-[var(--m)] max-w-[34rem] text-lg leading-relaxed text-board-text/90">
-            QueueUp sells a fixed number of tickets, holds each seat while its buyer pays, and checks people in at the
-            door by QR. When everyone grabs the last ticket at once, exactly one person gets it, and everyone else is
-            told why.
-          </p>
-          <div className="mt-[calc(var(--m)*1.5)]">
-            <Ctas />
+          <div>
+            <p className="max-w-[34rem] text-lg leading-relaxed text-board-text/90">
+              Sell a set number of tickets, hold each seat while people pay, and scan everyone in at the door. The board
+              keeps count, so no seat is ever sold twice.
+            </p>
+            <div className="mt-[var(--m)]">
+              <Ctas />
+            </div>
           </div>
-          <p className="mt-[calc(var(--m)/2)] text-sm text-board-muted">Free to try. Payments use simulated test cards.</p>
         </div>
 
-        <div>
-          <RaceBoard />
-          <p className="mt-[calc(var(--m)/2)] text-xs leading-relaxed text-board-muted">
-            An illustration of the test that runs on every push:{" "}
-            <code className="font-mono text-[11px] text-board-text">test_100_buyers_race_for_the_last_seat</code>.
-            Not live traffic.
-          </p>
+        <div className="mt-[calc(var(--m)*2)]">
+          <TonightBoard initial={stats} />
         </div>
+        <p className="mt-[calc(var(--m)*0.75)] flex flex-wrap items-center justify-between gap-3 text-sm text-board-muted">
+          <span>Free to try. Payments use simulated test cards.</span>
+          <Link href="/about" className={BOARD_LINK}>
+            How it works <ArrowIcon className="h-4 w-4" />
+          </Link>
+        </p>
       </section>
 
       <SlotRule />
-
-      {/* ----------------------------------------------------------- line score */}
-      <section className={`${WRAP} board-section`} aria-labelledby="line-score">
-        <h2 id="line-score" className={`max-w-3xl ${H2}`}>
-          Every race has one winner. The other side hears why.
-        </h2>
-        <p className="mt-[calc(var(--m)*0.75)] max-w-2xl text-board-text/85">
-          Each check and its write happen in one guarded database step, so there is no gap for a second buyer to slip
-          through.
-        </p>
-
-        <table className="mt-[calc(var(--m)*2)] w-full border-collapse text-left max-md:block">
-          <thead className="max-md:hidden">
-            <tr className="font-display text-xs font-bold uppercase tracking-[0.14em] text-board-muted">
-              <th className="w-[calc(var(--m)*11)] pb-[calc(var(--m)/2)] pr-[var(--m)] font-bold">The race</th>
-              <th className="pb-[calc(var(--m)/2)] pr-[var(--m)] font-bold">The guard</th>
-              <th className="w-[calc(var(--m)*8)] pb-[calc(var(--m)/2)] pr-[var(--m)] font-bold">Winner</th>
-              <th className="w-[calc(var(--m)*12)] pb-[calc(var(--m)/2)] font-bold">Everyone else</th>
-            </tr>
-          </thead>
-          <tbody className="max-md:block">
-            {RACES.map((r) => (
-              <tr key={r.race} className="border-t border-board-rule align-middle max-md:block max-md:py-[var(--m)]">
-                <th
-                  scope="row"
-                  className="py-[var(--m)] pr-[var(--m)] font-display text-2xl font-extrabold uppercase leading-none tracking-[0.02em] max-md:block max-md:py-0 max-md:pb-2"
-                >
-                  {r.race}
-                </th>
-                <td className="py-[var(--m)] pr-[var(--m)] text-board-text/80 max-md:block max-md:py-1">{r.guard}</td>
-                <td className="py-[var(--m)] pr-[var(--m)] max-md:block max-md:py-1">
-                  <span className="inline-flex items-center gap-2.5 font-medium">
-                    <Lit />
-                    {r.win}
-                  </span>
-                </td>
-                <td className="py-[var(--m)] max-md:block max-md:py-1">
-                  <span className="inline-flex items-center gap-2.5">
-                    <Out />
-                    <span className="plate-num px-1.5 py-0.5 text-sm">{r.code}</span>
-                    <span>{r.lose}</span>
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="mt-[var(--m)] text-sm text-board-muted">
-          Every row is a test in the suite, run against a real PostgreSQL database on every push.
-        </p>
-      </section>
 
       {/* -------------------------------------------------------------- the steps */}
       <section className="bg-plate text-plate-ink" aria-labelledby="steps">
@@ -370,20 +263,7 @@ export default async function Landing() {
 
       <SlotRule />
 
-      <footer>
-        <div className={`${WRAP} flex flex-wrap items-center justify-between gap-[var(--m)] py-[calc(var(--m)*1.5)] text-sm text-board-text/75`}>
-          <Wordmark className="text-lg text-board-text" />
-          <p>A portfolio project. Payments use simulated test cards, and no real money moves.</p>
-          <nav className="flex gap-5 font-display text-sm font-bold uppercase tracking-[0.1em]">
-            <Link href={FIND_HREF} className="hover:text-bulb">
-              Events
-            </Link>
-            <a href={`${PUBLIC_API_URL}/docs`} className="hover:text-bulb">
-              API docs
-            </a>
-          </nav>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
