@@ -1,0 +1,32 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "7.5rem",
+        "createdAt": "2026-10-03T09:51:48.108Z",
+        "reason": "finish reviewer: oversized enamel numeral plates (step plates, 0-oversold plate) are board objects, requested in review fixes 3 and 7"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "10rem",
+        "createdAt": "2026-10-03T09:51:48.265Z",
+        "reason": "finish reviewer: oversized enamel numeral plates (step plates, 0-oversold plate) are board objects, requested in review fixes 3 and 7"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "5rem",
+        "createdAt": "2026-10-03T09:51:48.429Z",
+        "reason": "finish reviewer: oversized enamel numeral plates (step plates, 0-oversold plate) are board objects, requested in review fixes 3 and 7"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "9rem",
+        "createdAt": "2026-10-03T09:51:48.609Z",
+        "reason": "finish reviewer: oversized enamel numeral plates (step plates, 0-oversold plate) are board objects, requested in review fixes 3 and 7"
+      }
+    ]
+  }
+}

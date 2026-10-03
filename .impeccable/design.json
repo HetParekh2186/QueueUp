@@ -1,0 +1,540 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T09:49:23.234Z",
+  "title": "Design System: QueueUp",
+  "extensions": {
+    "colorMeta": {
+      "board": {
+        "role": "primary",
+        "displayName": "Scoreboard Green",
+        "canonical": "#1f4a35",
+        "tonalRamp": [
+          "#173627",
+          "#285f44",
+          "#398861",
+          "#4ab17f",
+          "#72c49c",
+          "#9bd5b9",
+          "#c4e6d6",
+          "#edf7f2"
+        ]
+      },
+      "board-deep": {
+        "role": "primary",
+        "displayName": "Deep Board",
+        "canonical": "#12291d",
+        "tonalRamp": [
+          "#173526",
+          "#295e42",
+          "#3b865f",
+          "#4daf7c",
+          "#74c299",
+          "#9cd4b7",
+          "#c5e5d4",
+          "#edf7f2"
+        ]
+      },
+      "board-rule": {
+        "role": "primary",
+        "displayName": "Bolt Rule Green",
+        "canonical": "#2e5d46",
+        "tonalRamp": [
+          "#193327",
+          "#2d5a44",
+          "#408161",
+          "#53a87f",
+          "#79bd9c",
+          "#a0d0b8",
+          "#c7e3d5",
+          "#eef7f2"
+        ]
+      },
+      "board-text": {
+        "role": "neutral",
+        "displayName": "Board Text",
+        "canonical": "#f2f3ec",
+        "tonalRamp": [
+          "#2c2f1e",
+          "#4e5334",
+          "#70764b",
+          "#929a61",
+          "#abb184",
+          "#c3c8a8",
+          "#dcdfcc",
+          "#f4f5ef"
+        ]
+      },
+      "board-muted": {
+        "role": "neutral",
+        "displayName": "Muted Board Text",
+        "canonical": "#a9c2b3",
+        "tonalRamp": [
+          "#202d25",
+          "#384f41",
+          "#50715d",
+          "#689379",
+          "#8aac97",
+          "#acc4b6",
+          "#cedcd4",
+          "#f0f4f2"
+        ]
+      },
+      "plate": {
+        "role": "neutral",
+        "displayName": "Enamel Plate",
+        "canonical": "#f2f3ec",
+        "tonalRamp": [
+          "#2c2f1e",
+          "#4e5334",
+          "#70764b",
+          "#929a61",
+          "#abb184",
+          "#c3c8a8",
+          "#dcdfcc",
+          "#f4f5ef"
+        ]
+      },
+      "plate-ink": {
+        "role": "neutral",
+        "displayName": "Plate Ink",
+        "canonical": "#0f1d15",
+        "tonalRamp": [
+          "#1a3225",
+          "#2e5940",
+          "#427f5c",
+          "#56a678",
+          "#7bbb96",
+          "#a1cfb5",
+          "#c8e2d3",
+          "#eef6f2"
+        ]
+      },
+      "bulb": {
+        "role": "secondary",
+        "displayName": "Bulb Amber",
+        "canonical": "#ffb000",
+        "tonalRamp": [
+          "#4d3500",
+          "#875d00",
+          "#c18500",
+          "#fbad00",
+          "#ffc137",
+          "#ffd371",
+          "#ffe5ab",
+          "#fff7e6"
+        ]
+      },
+      "bulb-off": {
+        "role": "neutral",
+        "displayName": "Dark Socket",
+        "canonical": "#0b1811",
+        "tonalRamp": [
+          "#183425",
+          "#2a5c41",
+          "#3d845e",
+          "#4fac7a",
+          "#76c098",
+          "#9ed2b6",
+          "#c6e5d4",
+          "#eef7f2"
+        ]
+      },
+      "out": {
+        "role": "secondary",
+        "displayName": "Out Red",
+        "canonical": "#e0442f",
+        "tonalRamp": [
+          "#43110a",
+          "#751d11",
+          "#a82a19",
+          "#db3721",
+          "#e56251",
+          "#ed9083",
+          "#f4bdb6",
+          "#fcebe9"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Daylight Paper",
+        "canonical": "#e6eae2",
+        "tonalRamp": [
+          "#262c20",
+          "#434e39",
+          "#617051",
+          "#7e926a",
+          "#9bab8b",
+          "#b8c3ad",
+          "#d5dcce",
+          "#f2f4f0"
+        ],
+        "darkMode": "#0c1711"
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card Enamel",
+        "canonical": "#f6f7f2",
+        "tonalRamp": [
+          "#2c2f1d",
+          "#4d5333",
+          "#6e784a",
+          "#909c60",
+          "#a9b383",
+          "#c2c9a7",
+          "#dbdfcb",
+          "#f4f5ef"
+        ],
+        "darkMode": "#13241a"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0f1d15",
+        "tonalRamp": [
+          "#1a3225",
+          "#2e5940",
+          "#427f5c",
+          "#56a678",
+          "#7bbb96",
+          "#a1cfb5",
+          "#c8e2d3",
+          "#eef6f2"
+        ],
+        "darkMode": "#e8eee6"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#4b5c51",
+        "tonalRamp": [
+          "#222a25",
+          "#3d4a41",
+          "#576a5e",
+          "#718a7a",
+          "#91a598",
+          "#b1bfb6",
+          "#d1d9d4",
+          "#f1f4f2"
+        ],
+        "darkMode": "#93a99b"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#c3cdc2",
+        "tonalRamp": [
+          "#232a22",
+          "#3e4a3d",
+          "#596a57",
+          "#738a71",
+          "#93a591",
+          "#b2bfb1",
+          "#d2d9d1",
+          "#f1f4f1"
+        ],
+        "darkMode": "#26402f"
+      },
+      "ok": {
+        "role": "status",
+        "displayName": "Ok Green",
+        "canonical": "#17713f",
+        "tonalRamp": [
+          "#0d4023",
+          "#17703e",
+          "#21a059",
+          "#2bd174",
+          "#59dd93",
+          "#89e7b3",
+          "#b9f1d2",
+          "#eafbf1"
+        ],
+        "darkMode": "#3ccf7a"
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "Warn Amber",
+        "canonical": "#9a6200",
+        "tonalRamp": [
+          "#4d3100",
+          "#875600",
+          "#c17b00",
+          "#fba000",
+          "#ffb637",
+          "#ffcb71",
+          "#ffe1ab",
+          "#fff6e6"
+        ],
+        "darkMode": "#ffb000"
+      },
+      "bad": {
+        "role": "status",
+        "displayName": "Bad Red",
+        "canonical": "#b8301f",
+        "tonalRamp": [
+          "#41110b",
+          "#731e13",
+          "#a52b1c",
+          "#d73824",
+          "#e26354",
+          "#eb9185",
+          "#f3beb7",
+          "#fbebe9"
+        ],
+        "darkMode": "#ff6a55"
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent (mode-swapped)",
+        "canonical": "#1f4a35",
+        "darkMode": "#f2f3ec",
+        "note": "Aliases board by day and plate by night; accent-ink is the inverse."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Landing h1 only; stencil caps, one line may be lit amber."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Landing section heads."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Row heads, audience names, event titles on the board."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Plate numbers; tabular, flips on change."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Plate buttons."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text only."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Table headers, plate captions, chips."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Inline test names."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease-board",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All board state transitions."
+      },
+      {
+        "name": "bulb-light",
+        "value": "120ms",
+        "purpose": "Bulb background change."
+      },
+      {
+        "name": "bulb-ring",
+        "value": "260ms",
+        "purpose": "Bulb outline change."
+      },
+      {
+        "name": "plate-flip",
+        "value": "320ms, rotateX(-75deg) to 0 at perspective(300px), origin top",
+        "purpose": "Numeral plate value change; disabled under reduced motion."
+      },
+      {
+        "name": "control",
+        "value": "150ms",
+        "purpose": "Button color, filter and border transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "cta-split",
+        "value": "440px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ],
+    "slotRule": {
+      "value": "radial-gradient(circle, var(--board-rule) 2px, transparent 2.5px), background-size var(--m) 10px, height 10px",
+      "purpose": "Bolted divider between board sections; uses --line on light surfaces."
+    },
+    "focus": {
+      "value": "outline: 2px solid var(--bulb); outline-offset: 2px",
+      "purpose": "Global focus ring."
+    }
+  },
+  "components": [
+    {
+      "name": "Plate Button",
+      "kind": "button",
+      "refersTo": "button-plate",
+      "description": "The one board CTA; both competing paths use it identically.",
+      "html": "<div class=\"ds-board\"><a class=\"ds-btn-plate\" href=\"#\">Host an event <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M4 12h15M13 6l6 6-6 6\"/></svg></a> <a class=\"ds-btn-plate\" href=\"#\">Find an event <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M4 12h15M13 6l6 6-6 6\"/></svg></a></div>",
+      "css": ".ds-board{background:var(--board,#1f4a35);padding:24px;display:flex;gap:12px;flex-wrap:wrap}.ds-btn-plate{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;border-radius:3px;background:var(--plate,#f2f3ec);color:var(--plate-ink,#0f1d15);padding:14px 16px;font-family:'Big Shoulders',sans-serif;font-size:1.125rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;border:0;text-decoration:none;transition:background-color .15s}.ds-btn-plate svg{width:20px;height:20px;transition:transform .15s}.ds-btn-plate:hover{background:#fff}.ds-btn-plate:hover svg{transform:translateX(2px)}.ds-btn-plate:focus-visible{outline:2px solid var(--bulb,#ffb000);outline-offset:2px}"
+    },
+    {
+      "name": "Board Outline Button",
+      "kind": "button",
+      "refersTo": "button-board-outline",
+      "description": "Secondary action on the board (Run it again); lights amber on hover.",
+      "html": "<div class=\"ds-board\"><button class=\"ds-btn-outline\">Run it again</button></div>",
+      "css": ".ds-board{background:var(--board,#1f4a35);padding:24px}.ds-btn-outline{border-radius:3px;border:1px solid var(--board-rule,#2e5d46);background:transparent;color:var(--board-text,#f2f3ec);padding:6px 12px;font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:.875rem;letter-spacing:.1em;transition:color .15s,border-color .15s}.ds-btn-outline:hover{border-color:var(--bulb,#ffb000);color:var(--bulb,#ffb000)}.ds-btn-outline:focus-visible{outline:2px solid var(--bulb,#ffb000);outline-offset:2px}"
+    },
+    {
+      "name": "App Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Operate-mode primary: board green by day, plate at night.",
+      "html": "<button class=\"ds-btn-primary\">Reserve</button>",
+      "css": ".ds-btn-primary{border:0;border-radius:3px;background:var(--accent,#1f4a35);color:var(--accent-ink,#f2f3ec);padding:10px 16px;font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:1rem;letter-spacing:.06em;transition:filter .15s}.ds-btn-primary:hover{filter:brightness(1.25)}.ds-btn-primary:active{filter:brightness(.95)}.ds-btn-primary:focus-visible{outline:2px solid var(--bulb,#ffb000);outline-offset:2px}"
+    },
+    {
+      "name": "App Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Operate-mode secondary action.",
+      "html": "<button class=\"ds-btn-ghost\">Log in</button>",
+      "css": ".ds-btn-ghost{border-radius:3px;border:1px solid var(--line,#c3cdc2);background:var(--card,#f6f7f2);color:var(--ink,#0f1d15);padding:10px 16px;font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:1rem;letter-spacing:.06em;transition:border-color .15s}.ds-btn-ghost:hover{border-color:var(--ink,#0f1d15)}.ds-btn-ghost:focus-visible{outline:2px solid var(--bulb,#ffb000);outline-offset:2px}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Operate-mode field with stenciled label.",
+      "html": "<label class=\"ds-label\">Event title</label><input class=\"ds-input\" placeholder=\"Friday night show\">",
+      "css": ".ds-label{display:block;margin-bottom:4px;font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:.875rem;letter-spacing:.08em;color:var(--muted,#4b5c51)}.ds-input{width:100%;border-radius:3px;border:1px solid var(--line,#c3cdc2);background:var(--card,#f6f7f2);color:var(--ink,#0f1d15);padding:8px 12px;font-family:Barlow,sans-serif;font-size:.875rem;outline:none}.ds-input:focus{border-color:var(--ink,#0f1d15)}.ds-input:focus-visible{outline:2px solid var(--bulb,#ffb000);outline-offset:2px}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "nav",
+      "description": "Sticky 56px green bar; active item underlined amber.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-wm\"><i></i>QueueUp</span><a class=\"on\" href=\"#\">Events</a><a href=\"#\">My tickets</a><a class=\"ds-su\" href=\"#\">Sign up</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:stretch;gap:4px;height:56px;padding:0 16px;background:var(--board,#1f4a35)}.ds-wm{display:inline-flex;align-items:center;gap:8px;margin-right:16px;font-family:'Big Shoulders Stencil','Big Shoulders',sans-serif;font-weight:800;font-size:1.25rem;text-transform:uppercase;letter-spacing:.08em;color:var(--board-text,#f2f3ec)}.ds-wm i{width:10px;height:10px;border-radius:50%;background:var(--bulb,#ffb000)}.ds-nav a{display:flex;align-items:center;padding:0 10px;border-bottom:2px solid transparent;font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:15px;letter-spacing:.08em;color:var(--board-muted,#a9c2b3);text-decoration:none}.ds-nav a:hover{color:var(--board-text,#f2f3ec)}.ds-nav a:focus-visible{outline:2px solid var(--bulb,#ffb000);outline-offset:2px}.ds-nav a.on{border-color:var(--bulb,#ffb000);color:var(--board-text,#f2f3ec)}.ds-nav a.ds-su{margin:auto 0 auto auto;border:0;border-radius:3px;background:var(--plate,#f2f3ec);color:var(--plate-ink,#0f1d15);padding:6px 12px}.ds-nav a.ds-su:hover{background:var(--bulb,#ffb000)}"
+    },
+    {
+      "name": "Verdict Chips",
+      "kind": "chip",
+      "refersTo": "verdict-admitted",
+      "description": "Icon + word + color; Admitted lit, Already in plate, Rejected dashed out.",
+      "html": "<div class=\"ds-board\"><span class=\"ds-v ds-v-ok\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M4 12.5l5 5L20 6.5\"/></svg>Admitted</span><span class=\"ds-v ds-v-in\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M12 4v10M12 19v1\"/></svg>Already in</span><span class=\"ds-v ds-v-out\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M5.5 5.5l13 13M18.5 5.5l-13 13\"/></svg>Rejected</span></div>",
+      "css": ".ds-board{background:var(--board,#1f4a35);padding:24px;display:flex;gap:8px;flex-wrap:wrap}.ds-v{display:inline-flex;align-items:center;gap:8px;border-radius:3px;padding:8px 12px;font-family:'Big Shoulders',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.ds-v svg{width:20px;height:20px}.ds-v-ok{background:var(--bulb,#ffb000);color:var(--plate-ink,#0f1d15)}.ds-v-in{background:var(--plate,#f2f3ec);color:var(--plate-ink,#0f1d15)}.ds-v-out{color:var(--board-text,#f2f3ec);outline:1.5px dashed var(--out,#e0442f);outline-offset:-2px}.ds-v-out svg{color:var(--out,#e0442f)}"
+    },
+    {
+      "name": "Demo Event Chip",
+      "kind": "chip",
+      "refersTo": "chip-demo",
+      "description": "Required label on any is_demo event.",
+      "html": "<div class=\"ds-board\"><span class=\"ds-demo\">Demo event</span></div>",
+      "css": ".ds-board{background:var(--board-deep,#12291d);padding:24px}.ds-demo{display:inline-block;border-radius:2px;border:1px solid var(--board-rule,#2e5d46);padding:2px 6px;font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.12em;color:var(--board-muted,#a9c2b3)}"
+    },
+    {
+      "name": "Bulb States and Numeral Plate",
+      "kind": "custom",
+      "refersTo": "plate-numeral",
+      "description": "Race board bulbs (off, lit, won, out) beside a numeral plate.",
+      "html": "<div class=\"ds-board\"><span class=\"ds-plate\">99</span><span class=\"ds-bulb\"></span><span class=\"ds-bulb lit\"></span><span class=\"ds-bulb won\"></span><span class=\"ds-bulb out\"></span></div>",
+      "css": ".ds-board{background:var(--board-deep,#12291d);padding:18px;display:flex;align-items:center;gap:12px}.ds-plate{background:var(--plate,#f2f3ec);color:var(--plate-ink,#0f1d15);font-family:'Big Shoulders',sans-serif;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;border-radius:3px;padding:4px 6px;font-size:2.25rem}.ds-bulb{width:24px;height:24px;border-radius:9999px;background:var(--bulb-off,#0b1811);outline:1px solid color-mix(in oklab,var(--bulb,#ffb000) 16%,transparent);outline-offset:-1px;transition:background-color 120ms cubic-bezier(.16,1,.3,1)}.ds-bulb.lit,.ds-bulb.won{background:var(--bulb,#ffb000)}.ds-bulb.won{outline:2px solid var(--plate,#f2f3ec);outline-offset:2px}.ds-bulb.out{background:transparent;outline:1.5px dashed var(--out,#e0442f);outline-offset:-2px}"
+    },
+    {
+      "name": "App Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Operate-mode container: card enamel, hairline, ink on hover.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-label\">Checked in</div><div class=\"ds-n\">128</div></div>",
+      "css": ".ds-card{border-radius:4px;border:1px solid var(--line,#c3cdc2);background:var(--card,#f6f7f2);color:var(--ink,#0f1d15);padding:16px;transition:border-color .15s}.ds-card:hover{border-color:var(--ink,#0f1d15)}.ds-label{font-family:'Big Shoulders',sans-serif;font-weight:700;text-transform:uppercase;font-size:.875rem;letter-spacing:.08em;color:var(--muted,#4b5c51);margin-bottom:4px}.ds-n{font-family:'Big Shoulders',sans-serif;font-weight:800;font-size:1.875rem;font-variant-numeric:tabular-nums}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ballpark Scoreboard",
+    "overview": "QueueUp is drawn as a ballpark scoreboard: a field of painted green steel with enamel numeral plates bolted to it and a grid of incandescent bulbs that light up as things happen. The board is live, it counts, and it is never wrong. That matches the product's one promise: exactly one buyer gets the last seat. The page doesn't claim this in a headline. It shows the count happening.\n\nThere are four paints and no others: scoreboard green, plate white, bulb amber and out red. Everything is flat paint, with no shadows and no gradients. Depth comes from paint layers (board on deep board, plate on board) and from bolted slot rules. State is shown as illumination. A lit bulb means something is live or committed. A dark socket means nothing has happened yet. A dashed red ring means a request lost. Type is stencil and condensed sign-painter caps from the Big Shoulders family, and running text is set in Barlow.\n\nThe landing board runs in Persuade mode: full-bleed green, stencil headlines, big plates. The app pages run in Operate mode. They inherit the world through tokens: a green nav bar, enamel-light paper by day and the board's deep green at night, the same 3px plate corners, the same Big Shoulders labels. The board itself does not change between light and dark mode, because it is painted steel.",
+    "keyCharacteristics": [
+      "Four paints only. Green steel, enamel plate, amber bulb, out red.",
+      "Flat paint. Zero shadows and zero gradients, except the radial dots of the bolted slot rule.",
+      "State is illumination: off, lit, won, out.",
+      "One module (24px slot pitch) drives every gutter, column and section on the board.",
+      "Condensed uppercase Big Shoulders for every label, button and numeral. Barlow only for running text.",
+      "Numbers sit on white enamel plates and use tabular figures."
+    ],
+    "rules": [
+      {
+        "name": "The Amber Is Light Rule",
+        "body": "Amber means lit, live or committed. It never marks the preferred path. Host an event and Find an event use the identical plate-white button. No CTA is ever amber because it is the one you want people to click.",
+        "section": "colors"
+      },
+      {
+        "name": "The Out Is Outline Rule",
+        "body": "A loss is drawn as a dashed out-red ring at the same scale as the lit bulb it lost to. It is never a red fill and never a smaller mark.",
+        "section": "colors"
+      },
+      {
+        "name": "The Board Never Changes Rule",
+        "body": "Board tokens (board, board-deep, board-rule, board-text, board-muted, plate, plate-ink, bulb, bulb-off, out) are the same in light and dark mode. Only the app surface tokens switch.",
+        "section": "colors"
+      },
+      {
+        "name": "The Caps Are Paint Rule",
+        "body": "Every label, button, nav item, numeral and heading on the board is uppercase Big Shoulders. Barlow never appears in caps. Big Shoulders never sets a paragraph.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Plate Rule",
+        "body": "Any number that counts goes on a plate, or at least uses tabular figures, so digits don't shift when they tick.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Module Rule",
+        "body": "Every gutter, column width and section gap on the board is a multiple or simple fraction (1/3, 1/2, 3/4) of 24px. If a new value can't be written as `calc(var(--m) * n)`, it doesn't belong on the board.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Paint Rule",
+        "body": "No shadows and no gradients. To lift something, put it on a different paint, or on a plate.",
+        "section": "elevation"
+      },
+      {
+        "name": "The State Is Illumination Rule",
+        "body": "State changes are shown by lighting up: socket to amber, amber to ring, outline to dashed red. Never by elevation, scale or glow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use amber only for something lit, live or committed: a won bulb, a live count, the active nav item, focus, or the one lit line of a headline.",
+      "Do give competing paths the identical plate button.",
+      "Do draw a loss as a dashed out-red ring at the same scale as the win it lost to.",
+      "Do write every board spacing as a multiple or simple fraction of `--m` (24px).",
+      "Do label demo data with the \"Demo event\" chip whenever the API marks an event `is_demo`.",
+      "Do show every verdict as icon + word + color. Never color alone.",
+      "Do put counted numbers on enamel plates with tabular figures, and flip the plate when the value changes.",
+      "Do use daylight paper (#e6eae2) for light app surfaces and the board's deep green for dark ones. Leave the board itself the same in both modes."
+    ],
+    "donts": [
+      "Don't add box-shadows, glows or gradient fills. Depth is paint layering and bolted slot rules.",
+      "Don't make a call to action amber to favor it.",
+      "Don't fill a \"lost\" or \"sold out\" state with red. Out is an outline.",
+      "Don't set paragraphs in Big Shoulders, or labels and buttons in Barlow.",
+      "Don't round corners past 4px on plates, buttons, inputs or panels. Only bulbs are circles.",
+      "Don't introduce a fifth paint on the board."
+    ]
+  }
+}
