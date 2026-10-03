@@ -6,7 +6,11 @@ twice. Along the way it asserts what two WebSocket clients (a public viewer and 
 organizer's dashboard) receive.
 
     HOLD_SECONDS=45 docker compose up -d --build
+    docker compose exec api python -m app.seed      # the demo organizer it logs in as
     python scripts/smoke.py            # needs: pip install httpx websockets
+
+Creating events needs the organizer role, which only an admin can grant, so the run
+uses the seeded demo organizer (override with SMOKE_ORGANIZER_EMAIL / _PASSWORD).
 """
 
 import asyncio
@@ -23,6 +27,8 @@ import websockets
 API = os.getenv("API_URL", "http://localhost:8000")
 WEB = os.getenv("WEB_URL", "http://localhost:3000")
 WS = API.replace("http", "ws", 1)
+ORGANIZER_EMAIL = os.getenv("SMOKE_ORGANIZER_EMAIL", "organizer@demo.queueup.app")
+ORGANIZER_PASSWORD = os.getenv("SMOKE_ORGANIZER_PASSWORD", "queueup-demo")
 
 
 def step(msg: str) -> None:
@@ -63,15 +69,22 @@ async def main() -> None:
         assert r.json() == {"status": "ok", "database": "ok", "redis": "ok"}, r.text
         ok(r.text)
 
-        step("sign up organizer, staff, two buyers")
+        step("log in the organizer; sign up staff and two buyers")
         tag = uuid.uuid4().hex[:6]
         users = {}
-        for name in ("organizer", "staff", "alice", "bob"):
+        r = await c.post("/auth/login", json={"email": ORGANIZER_EMAIL, "password": ORGANIZER_PASSWORD})
+        assert r.status_code == 200, f"organizer login failed (seed demo data first?): {r.text}"
+        assert r.json()["user"]["role"] in ("organizer", "admin"), r.json()["user"]
+        users["organizer"] = r.json()
+        for name in ("staff", "alice", "bob"):
             r = await c.post("/auth/signup", json={"email": f"{name}-{tag}@example.com", "password": "password123", "display_name": name.title()})
             assert r.status_code == 201, r.text
+            assert r.json()["user"]["role"] == "user"
             users[name] = r.json()
         h = {k: {"Authorization": f"Bearer {v['access_token']}"} for k, v in users.items()}
-        ok("4 accounts")
+        r = await c.post("/events", json={"title": "x", "starts_at_local": "2030-01-01T10:00", "timezone": "UTC"}, headers=h["alice"])
+        assert r.status_code == 403, "a plain user must not be able to create events"
+        ok("organizer logged in; 3 new plain users; plain users can't create events")
 
         step("organizer creates and publishes a 1-seat event, assigns staff")
         start = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M")
