@@ -272,3 +272,11 @@ class SuspendIn(BaseModel):
 class AdminEventList(BaseModel):
     items: list[EventSummary]
     total: int
+
+
+class PublicStats(BaseModel):
+    tickets_sold: int
+    checked_in: int
+    events_on_sale: int
+    # True while seeded demo events exist, so the site can label the totals honestly.
+    includes_demo: bool

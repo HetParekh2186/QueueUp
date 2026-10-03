@@ -17,7 +17,7 @@ from app.db import engine, get_session
 from app.errors import DomainError
 from app.logconfig import configure_logging
 from app.realtime import listen_forever, publisher
-from app.routers import admin, auth, checkins, events, me, orders, ws
+from app.routers import admin, auth, checkins, events, me, orders, stats, ws
 
 log = logging.getLogger("queueup.http")
 
@@ -101,5 +101,5 @@ async def health(session: AsyncSession = Depends(get_session)) -> JSONResponse:
     return JSONResponse(status_code=200 if healthy else 503, content={"status": "ok" if healthy else "down", **checks})
 
 
-for module in (auth, events, orders, me, checkins, ws, admin):
+for module in (auth, events, orders, me, checkins, ws, admin, stats):
     app.include_router(module.router)

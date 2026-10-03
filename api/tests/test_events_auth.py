@@ -195,3 +195,18 @@ async def test_filtered_pagination_never_mixes_in_other_events(client):
         if not cursor:
             break
     assert seen and set(seen) == free_ids and len(seen) == len(free_ids)
+
+
+async def test_public_stats_counts_and_demo_flag(client):
+    import app.routers.stats as stats_module
+
+    stats_module._cache = None
+    organizer, buyer = await make_organizer(), await make_user("buyer")
+    event_id, type_id = await make_event(client, organizer, capacity=5)
+    paid = await buy(client, buyer, event_id, type_id, quantity=2)
+    await client.post("/checkins", json={"qr": paid["tickets"][0]["qr"], "event_id": event_id}, headers=organizer.headers)
+
+    stats_module._cache = None
+    r = await client.get("/stats")
+    assert r.status_code == 200
+    assert r.json() == {"tickets_sold": 2, "checked_in": 1, "events_on_sale": 1, "includes_demo": False}
