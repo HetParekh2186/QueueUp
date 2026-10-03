@@ -134,7 +134,15 @@ docker compose up --build
 
 Postgres and Redis are exposed on host ports **5433** and **6380** so they don't clash with local installs.
 
-**Optional: seed demo events.** `python scripts/seed_demo.py` (needs `httpx`) adds four sample events through the API. They're owned by `@demo.queueup.app`, which the API flags as `is_demo`, and the site labels each one "Demo event".
+**Load demo data.** This fills the app with a realistic, clearly labeled dataset in a few seconds:
+
+```bash
+docker compose exec api python -m app.seed --reset
+```
+
+It creates 24 events across eight cities and time zones in every state: on sale, nearly full, sold out, live checkout holds, past events with door check-ins and rejected scans, a cancelled event with refunds, and drafts. Around them come six organizers, eight door staff and 300 attendees (`--attendees N` for more), with about 1,350 orders and 2,350 tickets. Every demo account is on `@demo.queueup.app`. The API flags those events `is_demo` and the site labels them "Demo event". `--reset` deletes only demo accounts and their data.
+
+Log in as `organizer@demo.queueup.app` (organizer dashboards), `staff1@demo.queueup.app` (door scanner) or any seeded attendee. The password for every demo account is `queueup-demo`.
 
 **Demo in two minutes:**
 
