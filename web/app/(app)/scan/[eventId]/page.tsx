@@ -4,6 +4,7 @@ import jsQR from "jsqr";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertIcon, CheckIcon, CrossIcon } from "@/components/icons";
 import { LiveDot, RequireAuth } from "@/components/ui";
 import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -23,27 +24,42 @@ type Verdict = {
   tone: "ok" | "warn" | "bad";
   title: string;
   detail?: string;
+  at: number;
 };
 
 const REASONS: Record<string, string> = {
-  signature: "Invalid code — not a QueueUp ticket",
-  wrong_event: "Ticket is for a different event",
-  not_paid: "Not a valid ticket — unpaid or expired hold",
-  cancelled: "Ticket was cancelled or refunded",
-  unknown_ticket: "Ticket not found",
+  signature: "Not a QueueUp ticket. The code is invalid.",
+  wrong_event: "This ticket is for a different event.",
+  not_paid: "Not paid for. The hold was never completed.",
+  cancelled: "This ticket was cancelled or refunded.",
+  unknown_ticket: "Ticket not found.",
 };
 
 function toVerdict(status: number, body: Record<string, unknown>): Verdict {
-  if (status === 200) return { tone: "ok", title: "Admitted", detail: `${body.attendee} · ${body.ticket_type}` };
+  const at = Date.now();
+  if (status === 200) return { tone: "ok", title: "Admitted", detail: `${body.attendee} · ${body.ticket_type}`, at };
   if (body.result === "already_used")
     return {
       tone: "warn",
-      title: "Already checked in",
-      detail: `${body.attendee} · at ${clock(String(body.checked_in_at))}${body.checked_in_by ? ` by ${body.checked_in_by}` : ""}`,
+      title: "Already in",
+      detail: `${body.attendee} · scanned at ${clock(String(body.checked_in_at))}${body.checked_in_by ? ` by ${body.checked_in_by}` : ""}`,
+      at,
     };
-  if (status === 403) return { tone: "bad", title: "Not authorized", detail: "You're not assigned to this event." };
-  return { tone: "bad", title: "Rejected", detail: REASONS[String(body.reason)] ?? "Not a valid ticket" };
+  if (status === 403) return { tone: "bad", title: "Not authorized", detail: "You're not assigned to this event.", at };
+  return { tone: "bad", title: "Rejected", detail: REASONS[String(body.reason)] ?? "Not a valid ticket.", at };
 }
+
+/* Verdicts in the board's own language: lit amber for in, enamel for a repeat, and
+   the dashed out-red ring for a rejection. Icon + word + colour, never colour alone. */
+const VERDICT_STYLE = {
+  ok: { panel: "bg-bulb text-plate-ink", icon: CheckIcon, iconTone: "" },
+  warn: { panel: "bg-plate text-plate-ink", icon: AlertIcon, iconTone: "" },
+  bad: {
+    panel: "bg-board-deep text-board-text outline outline-[6px] -outline-offset-[14px] outline-dashed outline-out",
+    icon: CrossIcon,
+    iconTone: "text-out",
+  },
+} as const;
 
 function Scanner() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -55,6 +71,7 @@ function Scanner() {
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [camera, setCamera] = useState<"starting" | "on" | "unavailable">("starting");
   const [manual, setManual] = useState("");
+  const [history, setHistory] = useState<Verdict[]>([]);
   const busy = useRef(false);
   const lastCode = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
@@ -79,22 +96,34 @@ function Scanner() {
     token,
   );
 
+  const inFlight = useRef(false);
   const submit = useCallback(
-    async (qr: string) => {
-      // Ignore the same code for a few seconds: the camera sees it on every frame.
+    async (qr: string, manual = false) => {
+      // Camera reads see the same code on every frame, so they get a cooldown and a
+      // same-code window. A typed code is a deliberate action: it only waits for a
+      // request already in flight, never silently does nothing.
       const now = Date.now();
-      if (busy.current || (qr === lastCode.current.code && now - lastCode.current.at < 4000)) return;
+      if (inFlight.current) return;
+      if (!manual && (busy.current || (qr === lastCode.current.code && now - lastCode.current.at < 4000))) return;
+      inFlight.current = true;
       busy.current = true;
       lastCode.current = { code: qr, at: now };
       try {
         const body = await api<Record<string, unknown>>("/checkins", { method: "POST", body: { qr, event_id: eventId } });
-        setVerdict(toVerdict(200, body));
+        const v = toVerdict(200, body);
+        setVerdict(v);
+        setHistory((h) => [v, ...h].slice(0, 4));
         navigator.vibrate?.(80);
       } catch (err) {
-        if (err instanceof ApiError) setVerdict(toVerdict(err.status, err.body));
-        else setVerdict({ tone: "bad", title: "No connection", detail: "Couldn't reach the server. Try again." });
+        const v =
+          err instanceof ApiError
+            ? toVerdict(err.status, err.body)
+            : { tone: "bad" as const, title: "No connection", detail: "Couldn't reach the server. Try again.", at: Date.now() };
+        setVerdict(v);
+        setHistory((h) => [v, ...h].slice(0, 4));
         navigator.vibrate?.([60, 60, 60]);
       } finally {
+        inFlight.current = false;
         setTimeout(() => {
           busy.current = false;
         }, 1200);
@@ -148,50 +177,64 @@ function Scanner() {
     };
   }, [submit]);
 
-  const toneBg = { ok: "bg-ok", warn: "bg-warn", bad: "bg-bad" } as const;
+  const style = verdict ? VERDICT_STYLE[verdict.tone] : null;
+  const Icon = style?.icon;
 
   return (
     <div className="mx-auto max-w-md">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <Link href={`/events/${eventId}`} className="block truncate font-display text-lg font-semibold">
-            {event?.title ?? "Door scanner"}
+          <div className="label !mb-1">Door scanner</div>
+          <Link href={`/events/${eventId}`} className="block truncate font-display text-xl font-bold hover:text-accent">
+            {event?.title ?? "Loading event…"}
           </Link>
           <LiveDot on={live} />
         </div>
         {counts && (
-          <div className="text-right">
-            <div className="font-mono text-3xl font-semibold tabular">{counts.in}</div>
-            <div className="text-xs text-muted">checked in{counts.total ? ` of ${counts.total}` : ""}</div>
+          <div className="flex shrink-0 flex-col items-end">
+            <span className="plate-num px-2.5 py-1 text-3xl">{counts.in}</span>
+            <span className="mt-1 font-display text-xs font-bold uppercase tracking-[0.12em] text-muted">
+              in{counts.total ? ` of ${counts.total}` : ""}
+            </span>
           </div>
         )}
       </div>
 
-      <div className="relative aspect-square overflow-hidden rounded-xl bg-black">
+      <div className="relative aspect-square overflow-hidden rounded-[4px] bg-board-deep">
         <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
         <canvas ref={canvasRef} className="hidden" />
         {camera === "on" && !verdict && (
-          <div className="pointer-events-none absolute inset-[18%] rounded-lg border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.35)]" />
+          // Aim guide: four drawn corner brackets, lit amber while the camera is live.
+          <svg className="pointer-events-none absolute inset-[16%] h-[68%] w-[68%] text-bulb" viewBox="0 0 100 100" aria-hidden>
+            <path
+              d="M2 22V2h20M78 2h20v20M98 78v20H78M22 98H2V78"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={4}
+              strokeLinecap="square"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
         )}
         {camera !== "on" && (
-          <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-white/80">
-            {camera === "starting"
-              ? "Starting camera…"
-              : "Camera unavailable. Allow camera access, or open this page over HTTPS. You can paste a code below."}
+          <div className="absolute inset-0 grid place-items-center p-8 text-center">
+            <p className="text-board-text/85">
+              {camera === "starting"
+                ? "Starting the camera…"
+                : "No camera. Allow camera access, or open this page over HTTPS. You can paste a ticket code below."}
+            </p>
           </div>
         )}
-        {verdict && (
+        {verdict && style && Icon && (
           <button
-            className={`absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white ${toneBg[verdict.tone]}`}
+            className={`absolute inset-0 flex flex-col items-center justify-center gap-2 p-8 text-center ${style.panel}`}
             onClick={() => setVerdict(null)}
-            aria-live="assertive"
+            role="alert"
           >
-            <span className="text-7xl leading-none" aria-hidden>
-              {verdict.tone === "ok" ? "✓" : verdict.tone === "warn" ? "!" : "✕"}
-            </span>
-            <span className="mt-3 font-display text-3xl font-bold">{verdict.title}</span>
-            {verdict.detail && <span className="mt-1 text-lg opacity-90">{verdict.detail}</span>}
-            <span className="mt-6 text-sm opacity-75">Tap to scan next</span>
+            <Icon className={`h-20 w-20 ${style.iconTone}`} />
+            <span className="font-stencil text-5xl font-extrabold uppercase leading-none">{verdict.title}</span>
+            {verdict.detail && <span className="max-w-[24ch] text-lg font-medium">{verdict.detail}</span>}
+            <span className="mt-4 font-display text-sm font-bold uppercase tracking-[0.12em] opacity-70">Tap to scan next</span>
           </button>
         )}
       </div>
@@ -201,8 +244,7 @@ function Scanner() {
         onSubmit={(e) => {
           e.preventDefault();
           if (manual.trim()) {
-            lastCode.current = { code: "", at: 0 };
-            submit(manual.trim());
+            submit(manual.trim(), true);
             setManual("");
           }
         }}
@@ -216,6 +258,37 @@ function Scanner() {
         />
         <button className="btn-ghost shrink-0">Check</button>
       </form>
+
+      {history.length > 0 && (
+        <section className="mt-6" aria-label="Last scans">
+          <h2 className="label">Last scans</h2>
+          <ul className="divide-y divide-line rounded-[4px] border border-line">
+            {history.map((h) => {
+              const HIcon = VERDICT_STYLE[h.tone].icon;
+              return (
+                <li key={h.at} className="flex items-center gap-3 px-3 py-2.5">
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${
+                      h.tone === "ok"
+                        ? "bg-bulb text-plate-ink"
+                        : h.tone === "warn"
+                          ? "bg-plate text-plate-ink"
+                          : "text-out outline outline-[1.5px] -outline-offset-[1.5px] outline-dashed outline-out"
+                    }`}
+                  >
+                    <HIcon className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-sm font-bold uppercase tracking-[0.06em]">{h.title}</span>
+                    {h.detail && <span className="block truncate text-xs text-muted">{h.detail}</span>}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-muted">{clock(new Date(h.at).toISOString())}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
