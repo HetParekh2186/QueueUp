@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CheckIcon, EyeIcon, EyeOffIcon } from "@/components/icons";
+import { AlertIcon, CheckIcon, EyeIcon, EyeOffIcon } from "@/components/icons";
 import { ErrorBanner } from "@/components/ui";
 import { PUBLIC_API_URL, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -46,7 +46,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState<string | null>(null); // which action is running
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Errors show only after the first submit attempt, then update live as you type.
+  const [attempted, setAttempted] = useState(false);
   const [demoAvailable, setDemoAvailable] = useState(false);
   const firstField = useRef<HTMLInputElement>(null);
 
@@ -76,16 +80,24 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
+  const longEnough = password.length >= 8;
+  const fieldErrors = validate(mode, name, email, password);
+  const shown: FieldErrors = attempted ? fieldErrors : {};
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const email = String(form.get("email")).trim();
+    setAttempted(true);
+    const first = (["name", "email", "password"] as const).find((f) => fieldErrors[f]);
+    if (first) {
+      document.getElementById(first)?.focus();
+      return;
+    }
     run("submit", () =>
-      mode === "login" ? login(email, password) : signup(email, password, String(form.get("name")).trim()),
+      mode === "login" ? login(email.trim(), password) : signup(email.trim(), password, name.trim()),
     );
   }
 
-  const longEnough = password.length >= 8;
+  const bad = (f: keyof FieldErrors) => (shown[f] ? "!border-bad focus:!border-bad focus-visible:!outline-bad" : "");
 
   return (
     <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[4px] border border-line lg:min-h-[36rem] lg:grid-cols-[1fr_1.05fr]">
@@ -143,14 +155,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
           ))}
         </nav>
 
-        <form onSubmit={onSubmit} className="mt-8 space-y-5" noValidate={false}>
+        {/* noValidate: the browser's own bubbles can't be styled, so errors are drawn here instead. */}
+        <form onSubmit={onSubmit} className="mt-8 space-y-5" noValidate>
           {mode === "signup" && (
-            <Field label="Your name" htmlFor="name">
+            <Field label="Your name" htmlFor="name" error={shown.name}>
               <input
                 ref={firstField}
                 id="name"
                 name="name"
-                className="input h-12 !bg-paper !text-base"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                aria-invalid={shown.name ? true : undefined}
+                aria-describedby={shown.name ? "name-error" : undefined}
+                className={`input h-12 !bg-paper !text-base ${bad("name")}`}
                 required
                 maxLength={80}
                 autoComplete="name"
@@ -158,26 +175,31 @@ export function AuthForm({ mode }: { mode: Mode }) {
               />
             </Field>
           )}
-          <Field label="Email" htmlFor="email">
+          <Field label="Email" htmlFor="email" error={shown.email}>
             <input
               ref={mode === "login" ? firstField : undefined}
               id="email"
               name="email"
               type="email"
               inputMode="email"
-              className="input h-12 !bg-paper !text-base"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={shown.email ? true : undefined}
+              aria-describedby={shown.email ? "email-error" : undefined}
+              className={`input h-12 !bg-paper !text-base ${bad("email")}`}
               required
               autoComplete={mode === "login" ? "username" : "email"}
               placeholder="you@example.com"
             />
           </Field>
-          <Field label="Password" htmlFor="password">
+          <Field label="Password" htmlFor="password" error={mode === "login" ? shown.password : undefined}>
             <div className="relative">
               <input
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                className="input h-12 !bg-paper !pr-12 !text-base"
+                className={`input h-12 !bg-paper !pr-12 !text-base ${bad("password")}`}
+                aria-invalid={shown.password ? true : undefined}
                 required
                 minLength={mode === "signup" ? 8 : undefined}
                 maxLength={128}
@@ -186,7 +208,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyUp={(e) => setCapsLock(e.getModifierState("CapsLock"))}
                 onBlur={() => setCapsLock(false)}
-                aria-describedby="password-help"
+                aria-describedby={mode === "login" && shown.password ? "password-error password-help" : "password-help"}
               />
               <button
                 type="button"
@@ -200,9 +222,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </div>
             <div id="password-help" className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-live="polite">
               {mode === "signup" && (
-                <span className={`inline-flex items-center gap-1.5 ${longEnough ? "text-ok" : "text-muted"}`}>
+                <span
+                  className={`inline-flex items-center gap-1.5 ${
+                    longEnough ? "text-ok" : shown.password ? "font-semibold text-bad" : "text-muted"
+                  }`}
+                >
                   {longEnough ? (
                     <CheckIcon className="h-3.5 w-3.5" />
+                  ) : shown.password ? (
+                    <AlertIcon className="h-3.5 w-3.5" />
                   ) : (
                     <span className="h-2 w-2 rounded-full outline outline-[1.5px] outline-current" aria-hidden />
                   )}
@@ -253,13 +281,44 @@ export function AuthForm({ mode }: { mode: Mode }) {
   );
 }
 
-function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
+type FieldErrors = { name?: string; email?: string; password?: string };
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Plain-language messages that say what to do, not just what went wrong. */
+function validate(mode: Mode, name: string, email: string, password: string): FieldErrors {
+  const errors: FieldErrors = {};
+  if (mode === "signup" && !name.trim()) errors.name = "Add your name. It's shown on your tickets at the door.";
+  if (!email.trim()) errors.email = "Enter your email address.";
+  else if (!EMAIL.test(email.trim())) errors.email = "That doesn't look like an email address. Try one like you@example.com.";
+  if (mode === "signup" && password.length < 8) errors.password = "Use at least 8 characters.";
+  if (mode === "login" && !password) errors.password = "Enter your password.";
+  return errors;
+}
+
+function Field({
+  label,
+  htmlFor,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <label className="label" htmlFor={htmlFor}>
+      <label className={`label ${error ? "!text-bad" : ""}`} htmlFor={htmlFor}>
         {label}
       </label>
       {children}
+      {error && (
+        <p id={`${htmlFor}-error`} className="mt-2 flex items-start gap-1.5 text-sm font-medium text-bad" role="alert">
+          <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </p>
+      )}
     </div>
   );
 }
