@@ -1,1 +1,206 @@
 # QueueUp
+
+**Event ticketing and door check-in that never sells the same seat twice, even when 100 people hit "reserve" on the last ticket in the same millisecond.**
+
+Organizers create events with capacity-limited ticket tiers. Attendees reserve a seat, pay within a 10-minute hold, and get a signed QR code. Door staff scan it from a phone browser. Seat counts and check-ins update live over WebSockets.
+
+`Next.js + TypeScript` · `FastAPI` · `PostgreSQL` · `Redis` · `Celery` · `Docker Compose` · `GitHub Actions`
+
+---
+
+## The hard part: no overselling
+
+Here's the naive version, with capacity 50 and 49 seats already sold:
+
+```
+A: SELECT count(*) …  -> 49
+B: SELECT count(*) …  -> 49        (A hasn't inserted yet)
+A: 49 < 50 ? yes -> INSERT          (50)
+B: 49 < 50 ? yes -> INSERT          (51)  <-- OVERSOLD
+```
+
+QueueUp makes the check and the write one step that can't be interrupted:
+
+```sql
+BEGIN;
+SELECT capacity, sold FROM ticket_types WHERE id = :id FOR UPDATE;  -- B waits here until A commits
+-- release any holds on this type whose deadline passed (see "holds" below)
+-- if capacity - sold < quantity: ROLLBACK -> 409 sold_out
+INSERT INTO orders …; INSERT INTO tickets …;
+UPDATE ticket_types SET sold = sold + :quantity WHERE id = :id;
+COMMIT;
+```
+
+The database also enforces it with `CONSTRAINT ticket_types_sold_le_capacity CHECK (sold <= capacity)`. If a code path ever skipped the lock, Postgres would still reject the oversell.
+
+Every other race uses the same move: **a guarded `UPDATE … WHERE <expected state> RETURNING`, where "zero rows affected" means you lost.**
+
+| Race | Guard | Loser gets |
+|---|---|---|
+| Two buyers, one seat | `SELECT … FOR UPDATE` on the ticket type | `409 sold_out` |
+| Pay at the instant the hold expires | `WHERE status='pending' AND expires_at > now()` vs. the sweeper's `expires_at <= now()` | `410 hold_expired` (payment voided) |
+| Same QR at two doors | `WHERE status='confirmed'` | `409 already_used`, with who scanned it and when |
+| Double-clicked "reserve" | `orders.idempotency_key UNIQUE` | `409 duplicate_request` + the original `order_id` |
+| Refund racing a door scan | refund requires every ticket still `confirmed` | `409 already_checked_in` |
+| Organizer lowers capacity mid-sale | same row lock as reserve, `new_capacity >= sold` | `409 capacity_below_sold` |
+
+**One lock order prevents deadlocks.** Every writer that touches more than one table takes locks in the order `ticket_types → orders → tickets`. Confirm and check-in never lock a ticket type. Because no two writers ever wait on each other in a cycle, there are no deadlocks.
+
+**One clock.** Every expiry check compares against Postgres `now()`, never against the app server's or the browser's clock. The checkout countdown is cosmetic. It uses the `server_now` field in the response to correct for skew in the browser's clock.
+
+### The proof
+
+[`api/tests/test_concurrency.py`](api/tests/test_concurrency.py) runs against real Postgres:
+
+- **100 buyers race for 1 seat**: exactly 1 gets `201` and 99 get `409`. `sold = 1`, and there is 1 active ticket row.
+- **50 buyers each want 3 of 10 seats**: exactly 3 orders succeed and nobody gets a partial order.
+- **Capacity is cut while 40 buyers race**: `sold` never ends up above `capacity`.
+- **The naive read-then-write oversells.** This test keeps the bug reproducible.
+- **The CHECK constraint fires** when someone tries to write `sold > capacity` directly.
+
+Other suites cover the confirm-vs-sweeper race (25 orders at once), 20 simultaneous scans of one QR (exactly 1 admitted, all 20 logged), a storm of 10 double-clicks with the same idempotency key (1 order), and the rest of the edge cases.
+
+```
+$ pytest
+........................................                    [100%]
+40 passed
+```
+
+> 📸 *Add a screenshot of `pytest -v tests/test_concurrency.py` here.*
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  B[Browser<br/>Next.js pages] -- REST --> API1[api worker 1]
+  B -- REST --> API2[api worker 2]
+  B <-- WebSocket /ws/events/:id --> API2
+  S[Door phone<br/>camera scanner] -- POST /checkins --> API1
+  API1 & API2 --> PG[(PostgreSQL<br/>row locks · CHECKs)]
+  API1 & API2 <-- pub/sub event:* --> R[(Redis)]
+  W[Celery worker + beat] --> PG
+  W -- publish --> R
+```
+
+- **web**: Next.js App Router. The landing page is a ballpark-scoreboard pitch that replays the race test live. Its visual system is documented in [DESIGN.md](DESIGN.md) and the product context in [PRODUCT.md](PRODUCT.md). The public event pages are server-rendered. Checkout, tickets, the organizer console and the scanner are client pages.
+- **api**: FastAPI with async SQLAlchemy/asyncpg. Compose runs 2 uvicorn workers so the real-time path is exercised across processes.
+- **worker**: Celery with beat. It sweeps expired holds every 15s, closes past events, sends reminder emails 24h ahead, and runs an hourly inventory reconcile.
+- **postgres**: the source of truth. The schema is in [`api/alembic/versions/0001_initial.py`](api/alembic/versions/0001_initial.py).
+- **redis**: carries WebSocket fan-out between workers and holds the rate-limit counters.
+
+### Holds
+
+Reserving inserts tickets as `held` with `expires_at = now() + 10 min`. If nobody pays, the seat returns to inventory in one of two ways:
+
+1. **The sweeper** (every 15s) expires due holds in a short transaction per ticket type, under the same lock as reserve.
+2. **Reserve itself** first expires any due holds on the type it just locked. So a hold that expired 3 seconds ago never makes the event look sold out while the sweeper hasn't caught up.
+
+Both paths run the same function, `expire_due_holds`. Every job can safely run twice: the sweeper's guard skips rows that are already expired, and reminders are claimed with `UPDATE … WHERE reminder_sent_at IS NULL` before the email is sent.
+
+### Real-time
+
+Handlers publish to the Redis channel `event:<id>` **after the transaction commits**, so a seat change that rolled back is never broadcast. Each API worker runs one pattern subscriber that forwards messages to its own sockets. Seat counts go to everyone. Check-in and order messages go only to sockets authenticated as the organizer or assigned staff. If Redis is down, messages are still delivered to sockets on the same worker and HTTP keeps working.
+
+Live counts are for display only. Whether a sale succeeds is decided by the locked transaction, never by the number in a WebSocket message.
+
+### QR codes
+
+A QR holds an HMAC-signed token over `{ticket_id, event_id}`, never a bare id. It uses its own secret, separate from the session JWT secret.
+
+- **Forgery** is stopped by the signature.
+- **Wrong door** is stopped because the token carries `event_id`.
+- **A shared screenshot** is still only one ticket. The `confirmed → checked_in` guard makes the second scan return "already used".
+
+Every scan attempt, including forged codes, is recorded in `check_in_events` for audit.
+
+### Auth and roles
+
+Passwords are hashed with argon2id. Access JWTs last 15 minutes, with 7-day refresh tokens. The token carries only the user id and the admin flag. Being an organizer (`events.organizer_id`) or staff (`staff_assignments`) is looked up on every request, so revoking a staffer takes effect immediately. Login returns the same error and takes the same time whether or not the email exists. Signup, login (per IP and per account), reservations and scans are rate-limited in Redis. If Redis is unavailable the limiter lets requests through; inventory safety never depends on it.
+
+---
+
+## Run it
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+- App: http://localhost:3000 (landing page; events are at `/events`)
+- API docs (OpenAPI): http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+Postgres and Redis are exposed on host ports **5433** and **6380** so they don't clash with local installs.
+
+**Optional: seed demo events.** `python scripts/seed_demo.py` (needs `httpx`) adds four sample events through the API. They're owned by `@demo.queueup.app`, which the API flags as `is_demo`, and the site labels each one "Demo event".
+
+**Demo in two minutes:**
+
+1. Sign up and go to **Organize → New event**. Make 2 seats, then **Publish**.
+2. Open the event in two browser windows logged in as two different users.
+3. Reserve in one window and watch "2 left" drop to "1 left" in the other.
+4. Pay with the test card, then open **My tickets** to see the QR.
+5. Assign a staffer by email and open **Door scanner** on a phone. Scan the QR twice: the first scan is green, the second is amber "already checked in".
+6. Watch the organizer dashboard count climb live.
+
+To watch a hold expire on its own, run `HOLD_SECONDS=45 docker compose up`.
+
+**End-to-end smoke test** (against the running stack):
+
+```bash
+pip install httpx websockets
+HOLD_SECONDS=45 docker compose up -d --build
+python scripts/smoke.py
+```
+
+It races two buyers, waits for the worker to expire the winner's hold, checks that the WebSocket received the released seat, resells it, double-scans the ticket, and verifies the dashboard, the CSV and the server-rendered pages.
+
+**Backend tests** (need Postgres; compose provides it):
+
+```bash
+cd api
+python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt   # Windows: .venv\Scripts\
+docker compose up -d postgres redis
+.venv/bin/pytest -v
+```
+
+> The camera needs a secure context, so the scanner works on `localhost` or over HTTPS. When testing from a phone on your LAN, use a tunnel (e.g. `cloudflared`, `ngrok`) or the paste-a-code box.
+
+---
+
+## API
+
+| Method & path | Who | Purpose |
+|---|---|---|
+| `POST /auth/signup` · `/auth/login` · `/auth/refresh` | public | Get JWT access + refresh tokens |
+| `GET /events` | public | Published events, cursor-paginated |
+| `GET /events/{id}` | public (drafts: owner) | Detail, tiers, seats remaining |
+| `POST /events` · `PATCH /events/{id}` · `DELETE /events/{id}` | owner | Create draft, edit, publish, cancel, or delete (only with no orders) |
+| `POST/PATCH/DELETE /events/{id}/ticket-types[/{tid}]` | owner | Tiers; capacity edits go through the locked path |
+| `GET/POST/DELETE /events/{id}/staff` | owner | Assign door staff by email |
+| `GET /events/{id}/dashboard` | owner, staff | Held, paid, checked-in, revenue, recent scans |
+| `GET /events/{id}/attendees.csv` | owner | Export, protected against formula injection |
+| `POST /events/{id}/reservations` | user | Reserve N seats as a hold (needs `idempotency_key`) |
+| `GET /orders/{id}` · `POST /orders/{id}/confirm` · `DELETE /orders/{id}` · `POST /orders/{id}/refund` | order owner | Checkout, release, refund |
+| `GET /me/tickets` · `/me/holds` · `/me/events` · `/me/staff-events` | user | Personal views |
+| `POST /checkins` | owner, staff | Scan `{qr, event_id}` and get a verdict |
+| `WS /ws/events/{id}?token=` | public / staff | Live seats; check-ins for staff |
+| `POST /admin/users/{id}/suspend` · `/admin/events/{id}/suspend` | admin | Platform moderation |
+
+Status codes: `409` means the world changed under you (a lost race or an already-used ticket). `410` means the hold expired. `422` means bad input or an invalid QR. `403` means a role or scoping failure. `401` means a missing or expired token.
+
+---
+
+## Edge cases handled
+
+Two buyers for one seat · confirming as the hold expires · the same QR at two doors · double-submit · capacity cut below sold (rejected) · deleting an event that has orders (blocked; cancel instead, which refunds) · an expired hold the sweeper hasn't reached yet · app-server clock skew (DB clock only) · venue time zones (stored in UTC plus an IANA zone, shown in venue time) · all-or-nothing multi-ticket orders · refund after check-in (blocked) · zero or negative values (CHECK constraints plus validation) · reserving for draft, cancelled or ended events · scanning an unpaid hold · a scan for the wrong event · forged QRs · payment authorized but the hold lost (voided) · stale counts on other workers (Redis pub/sub) · open redirects via `?next=` · CSV formula injection.
+
+## Deliberately out of scope (v1)
+
+Real card settlement (payments are simulated with the authorize → capture/void shape of a real provider), assigned-seat maps, offline scanning, and Redis `DECR` as an inventory gate for flash sales. Row locks are plenty at this scale, and Redis would become a second source of truth.
+
+## Deploying
+
+Any host with Postgres, Redis and a worker process works (Render, Fly.io, Railway, AWS). Set `ENVIRONMENT=production`, `SECRET_KEY` and `QR_SECRET` (random, 32+ bytes; the API refuses to boot otherwise), `DATABASE_URL`, `REDIS_URL` and `CORS_ORIGINS`. Build the web image with `NEXT_PUBLIC_API_URL` set to the public API URL. The API image runs `alembic upgrade head` on start.
