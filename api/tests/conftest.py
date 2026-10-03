@@ -32,7 +32,7 @@ from app.models import User  # noqa: E402
 from app.security import create_access_token  # noqa: E402
 
 API_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TABLES = "check_in_events, staff_assignments, tickets, orders, ticket_types, events, users"
+TABLES = "waitlist_entries, check_in_events, staff_assignments, tickets, orders, ticket_types, events, users"
 
 
 async def _ensure_database() -> None:
