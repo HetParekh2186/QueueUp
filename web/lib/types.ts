@@ -1,4 +1,33 @@
-export type User = { id: string; email: string; display_name: string; is_admin: boolean };
+export type Role = "user" | "organizer" | "admin";
+
+export type User = {
+  id: string;
+  email: string;
+  display_name: string;
+  role: Role;
+  is_admin: boolean;
+  organizer_requested_at: string | null;
+};
+
+export const canOrganize = (u: User | null | undefined) => u?.role === "organizer" || u?.role === "admin";
+
+export type AdminUser = User & {
+  is_suspended: boolean;
+  created_at: string;
+  events_organized: number;
+  tickets_held: number;
+};
+
+export type AdminStats = {
+  users: number;
+  organizers: number;
+  pending_requests: number;
+  suspended: number;
+  events_by_status: Record<"draft" | "published" | "ended" | "cancelled", number>;
+  tickets_sold: number;
+  checked_in: number;
+  revenue_cents: number;
+};
 
 export type TokenResponse = { access_token: string; refresh_token: string; user: User };
 

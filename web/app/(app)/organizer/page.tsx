@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ErrorBanner, RequireAuth, StatusPill } from "@/components/ui";
+import { RequireOrganizer } from "@/components/RequireOrganizer";
+import { ErrorBanner, StatusPill } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { eventTime } from "@/lib/format";
 import type { EventSummary } from "@/lib/types";
 
 export default function OrganizerPage() {
   return (
-    <RequireAuth>
+    <RequireOrganizer>
       <Organizer />
-    </RequireAuth>
+    </RequireOrganizer>
   );
 }
 

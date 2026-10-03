@@ -2,15 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ErrorBanner, RequireAuth } from "@/components/ui";
+import { RequireOrganizer } from "@/components/RequireOrganizer";
+import { ErrorBanner } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import type { EventDetail } from "@/lib/types";
 
 export default function NewEventPage() {
   return (
-    <RequireAuth>
+    <RequireOrganizer>
       <NewEvent />
-    </RequireAuth>
+    </RequireOrganizer>
   );
 }
 

@@ -7,7 +7,7 @@ import { CheckIcon } from "@/components/icons";
 import { ErrorBanner, QrImage, RequireAuth, StatusPill } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { eventTime, money } from "@/lib/format";
-import type { Order, Ticket } from "@/lib/types";
+import type { EventSummary, Order, Ticket } from "@/lib/types";
 
 export default function TicketsPage() {
   return (
@@ -40,6 +40,7 @@ function group(tickets: Ticket[]): Record<Tab, Ticket[]> {
 function Tickets() {
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [holds, setHolds] = useState<Order[]>([]);
+  const [shifts, setShifts] = useState<EventSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("upcoming");
@@ -47,10 +48,12 @@ function Tickets() {
   const [q, setQ] = useState("");
 
   const load = useCallback(() => {
-    Promise.all([api<Ticket[]>("/me/tickets"), api<Order[]>("/me/holds")])
-      .then(([t, h]) => {
+    Promise.all([api<Ticket[]>("/me/tickets"), api<Order[]>("/me/holds"), api<EventSummary[]>("/me/staff-events")])
+      .then(([t, h, s]) => {
         setTickets(t);
         setHolds(h);
+        // Door shifts: events you're assigned to scan that haven't finished.
+        setShifts(s.filter((e) => e.status === "published"));
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
@@ -89,6 +92,28 @@ function Tickets() {
       <div className="mt-4">
         <ErrorBanner message={error} />
       </div>
+
+      {shifts.length > 0 && (
+        <section className="mt-6">
+          <h2 className="label">Your door shifts</h2>
+          <ul className="space-y-2">
+            {shifts.map((e) => (
+              <li key={e.id} className="card flex flex-wrap items-center justify-between gap-3 p-4">
+                <span className="min-w-0">
+                  <span className="font-semibold">{e.title}</span>
+                  <span className="block text-sm text-muted">
+                    {eventTime(e.starts_at, e.timezone)}
+                    {e.venue ? ` · ${e.venue}` : ""}
+                  </span>
+                </span>
+                <Link href={`/scan/${e.id}`} className="btn-primary !py-1.5">
+                  Open scanner
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {holds.length > 0 && (
         <section className="mt-6">

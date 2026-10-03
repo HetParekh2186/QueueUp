@@ -19,7 +19,12 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded-[3px] border border-line bg-card p-0.5">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      // Long option sets scroll inside themselves on phones instead of widening the page.
+      className="inline-flex max-w-full overflow-x-auto rounded-[3px] border border-line bg-card p-0.5 [scrollbar-width:none]"
+    >
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -29,7 +34,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={`${PLATE} rounded-[2px] px-3 py-1.5 ${
+            className={`${PLATE} shrink-0 whitespace-nowrap rounded-[2px] px-3 py-1.5 ${
               active ? "bg-accent text-accent-ink" : "text-muted hover:text-ink"
             }`}
           >
