@@ -6,6 +6,10 @@ Organizers create events with capacity-limited ticket tiers. Attendees reserve a
 
 `Next.js + TypeScript` · `FastAPI` · `PostgreSQL` · `Redis` · `Celery` · `Docker Compose` · `GitHub Actions`
 
+**Live demo: [web-production-4cbcf.up.railway.app](https://web-production-4cbcf.up.railway.app/)** · [API docs](https://queueup-production-c3bd.up.railway.app/docs)
+
+To look around as an organizer or door staff, log in as `organizer@demo.queueup.app` or `staff1@demo.queueup.app` with password `queueup-demo`. The site is filled with clearly labeled demo events, and payments use simulated test cards (pick "Visa 4242" at checkout). Or sign up and buy a ticket yourself.
+
 ---
 
 ## The hard part: no overselling
@@ -61,12 +65,18 @@ Every other race uses the same move: **a guarded `UPDATE … WHERE <expected sta
 Other suites cover the confirm-vs-sweeper race (25 orders at once), 20 simultaneous scans of one QR (exactly 1 admitted, all 20 logged), a storm of 10 double-clicks with the same idempotency key (1 order), and the rest of the edge cases.
 
 ```
-$ pytest
-........................................                    [100%]
-40 passed
-```
+$ pytest -v tests/test_concurrency.py
+tests/test_concurrency.py::test_100_buyers_race_for_the_last_seat_exactly_one_wins PASSED                                    [ 20%]
+tests/test_concurrency.py::test_multi_ticket_orders_are_all_or_nothing_under_contention PASSED                               [ 40%]
+tests/test_concurrency.py::test_concurrent_capacity_cut_and_sales_never_go_negative PASSED                                   [ 60%]
+tests/test_concurrency.py::test_naive_read_then_write_oversells PASSED                                                       [ 80%]
+tests/test_concurrency.py::test_check_constraint_is_the_last_line_of_defense PASSED                                          [100%]
 
-> 📸 *Add a screenshot of `pytest -v tests/test_concurrency.py` here.*
+5 passed in 11.77s
+
+$ pytest
+43 passed
+```
 
 ---
 
