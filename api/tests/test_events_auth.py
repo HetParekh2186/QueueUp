@@ -1,6 +1,6 @@
 """Auth, event lifecycle, scoping and input edge cases."""
 
-from .conftest import buy, future, make_event, make_user, reserve
+from .conftest import buy, future, make_event, make_organizer, make_user, reserve
 
 
 async def test_signup_login_refresh_me(client):
@@ -38,7 +38,7 @@ async def test_protected_routes_require_auth(client):
 
 
 async def test_event_times_are_stored_in_utc_from_venue_local_time(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     r = await client.post(
         "/events",
         json={"title": "Chicago show", "starts_at_local": "2027-01-15T20:00", "timezone": "America/Chicago"},
@@ -54,7 +54,7 @@ async def test_event_times_are_stored_in_utc_from_venue_local_time(client):
 
 
 async def test_drafts_are_private_and_not_on_sale(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, publish=False)
     assert (await client.get(f"/events/{event_id}")).status_code == 404
     assert (await client.get(f"/events/{event_id}", headers=organizer.headers)).status_code == 200
@@ -64,14 +64,14 @@ async def test_drafts_are_private_and_not_on_sale(client):
 
 
 async def test_publish_requires_ticket_types(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     r = await client.post("/events", json={"title": "Empty", "starts_at_local": future(), "timezone": "UTC"}, headers=organizer.headers)
     r = await client.patch(f"/events/{r.json()['id']}", json={"status": "published"}, headers=organizer.headers)
     assert r.status_code == 409 and r.json()["error"] == "no_ticket_types"
 
 
 async def test_only_owner_can_edit(client):
-    organizer, other = await make_user("organizer"), await make_user("other")
+    organizer, other = await make_organizer("organizer"), await make_user("other")
     event_id, type_id = await make_event(client, organizer)
     assert (await client.patch(f"/events/{event_id}", json={"title": "mine"}, headers=other.headers)).status_code == 403
     r = await client.post(f"/events/{event_id}/ticket-types", json={"name": "VIP", "price_cents": 1, "capacity": 1}, headers=other.headers)
@@ -80,14 +80,14 @@ async def test_only_owner_can_edit(client):
 
 
 async def test_admin_can_manage_any_event(client):
-    organizer, admin = await make_user("organizer"), await make_user("admin", is_admin=True)
+    organizer, admin = await make_organizer("organizer"), await make_user("admin", is_admin=True)
     event_id, _ = await make_event(client, organizer)
     r = await client.patch(f"/events/{event_id}", json={"title": "Fixed by admin"}, headers=admin.headers)
     assert r.status_code == 200
 
 
 async def test_capacity_cannot_drop_below_sold(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, capacity=10)
     await buy(client, buyer, event_id, type_id, quantity=4)
     url = f"/events/{event_id}/ticket-types/{type_id}"
@@ -98,7 +98,7 @@ async def test_capacity_cannot_drop_below_sold(client):
 
 
 async def test_cannot_delete_event_with_orders(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer)
     await reserve(client, buyer, event_id, type_id)
     r = await client.delete(f"/events/{event_id}", headers=organizer.headers)
@@ -109,7 +109,7 @@ async def test_cannot_delete_event_with_orders(client):
 
 
 async def test_bad_inputs_rejected(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     event_id, _ = await make_event(client, organizer)
     for bad in ({"name": "x", "price_cents": -1, "capacity": 1}, {"name": "x", "price_cents": 1, "capacity": -5}):
         r = await client.post(f"/events/{event_id}/ticket-types", json=bad, headers=organizer.headers)
@@ -118,7 +118,7 @@ async def test_bad_inputs_rejected(client):
 
 
 async def test_event_list_cursor_pagination(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     for _ in range(5):
         await make_event(client, organizer)
     seen, cursor = [], None
@@ -133,7 +133,7 @@ async def test_event_list_cursor_pagination(client):
 
 
 async def test_csv_export_neutralizes_formulas(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     evil = await make_user("=HYPERLINK(evil)")
     event_id, type_id = await make_event(client, organizer)
     await buy(client, evil, event_id, type_id)
@@ -154,7 +154,7 @@ async def test_health(client):
 
 
 async def test_event_list_filters(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     jazz, jazz_type = await make_event(client, organizer, capacity=1, price_cents=3000)
     await client.patch(f"/events/{jazz}", json={"title": "Rooftop Jazz 100%"}, headers=organizer.headers)
     free, _ = await make_event(client, organizer, capacity=50, price_cents=0)
@@ -180,7 +180,7 @@ async def test_event_list_filters(client):
 
 
 async def test_filtered_pagination_never_mixes_in_other_events(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     free_ids = set()
     for i in range(5):
         eid, _ = await make_event(client, organizer, price_cents=0 if i % 2 == 0 else 500)

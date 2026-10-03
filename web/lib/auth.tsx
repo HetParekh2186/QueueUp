@@ -11,6 +11,8 @@ type AuthState = {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => void;
+  /** Re-read the current user (e.g. after requesting or being granted a role). */
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -52,8 +54,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => saveAuth(null), []);
 
+  const refreshUser = useCallback(async () => {
+    const auth = loadAuth();
+    if (!auth) return;
+    try {
+      const fresh = await api<User>("/auth/me");
+      const latest = loadAuth(); // tokens may have been refreshed meanwhile
+      if (latest) saveAuth({ ...latest, user: fresh });
+    } catch {
+      /* offline or logged out: keep what we have */
+    }
+  }, []);
+
+  // Roles live on the server and can change at any time (an admin approves you), so
+  // re-read the user once per page load instead of trusting the copy from login.
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
   return (
-    <AuthContext.Provider value={{ user, ready, token, login, signup, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, ready, token, login, signup, logout, refreshUser }}>{children}</AuthContext.Provider>
   );
 }
 

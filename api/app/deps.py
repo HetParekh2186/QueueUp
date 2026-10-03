@@ -67,6 +67,12 @@ async def get_event_or_404(session: AsyncSession, event_id: uuid.UUID) -> Event:
     return event
 
 
+async def require_organizer(user: User = Depends(get_current_user)) -> User:
+    if not user.can_organize:
+        raise HTTPException(403, {"error": "organizer_required"})
+    return user
+
+
 def can_manage(user: User | None, event: Event) -> bool:
     return user is not None and (user.is_admin or event.organizer_id == user.id)
 

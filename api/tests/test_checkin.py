@@ -7,7 +7,7 @@ import jwt
 
 from app.security import sign_qr
 
-from .conftest import buy, make_event, make_user, reserve, sql
+from .conftest import buy, make_event, make_organizer, make_user, reserve, sql
 
 
 async def scan(client, actor, event_id, qr):
@@ -15,7 +15,7 @@ async def scan(client, actor, event_id, qr):
 
 
 async def setup(client):
-    organizer, buyer, staff = await make_user("organizer"), await make_user("jordan lee"), await make_user("staff")
+    organizer, buyer, staff = await make_organizer("organizer"), await make_user("jordan lee"), await make_user("staff")
     event_id, type_id = await make_event(client, organizer)
     r = await client.post(f"/events/{event_id}/staff", json={"email": staff.email}, headers=organizer.headers)
     assert r.status_code == 201
@@ -68,7 +68,7 @@ async def test_ticket_for_another_event_rejected(client):
 
 
 async def test_unpaid_hold_rejected(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer)
     order = (await reserve(client, buyer, event_id, type_id)).json()
     # A held ticket has no QR; mint one anyway to prove the server re-checks status.

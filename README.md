@@ -6,6 +6,10 @@ Organizers create events with capacity-limited ticket tiers. Attendees reserve a
 
 `Next.js + TypeScript` · `FastAPI` · `PostgreSQL` · `Redis` · `Celery` · `Docker Compose` · `GitHub Actions`
 
+**Live demo: [web-production-4cbcf.up.railway.app](https://web-production-4cbcf.up.railway.app/)** · [API docs](https://queueup-production-c3bd.up.railway.app/docs)
+
+To look around as an organizer or door staff, log in as `organizer@demo.queueup.app` or `staff1@demo.queueup.app` with password `queueup-demo`. The site is filled with clearly labeled demo events, and payments use simulated test cards (pick "Visa 4242" at checkout). Or sign up and buy a ticket yourself.
+
 ---
 
 ## The hard part: no overselling
@@ -61,12 +65,18 @@ Every other race uses the same move: **a guarded `UPDATE … WHERE <expected sta
 Other suites cover the confirm-vs-sweeper race (25 orders at once), 20 simultaneous scans of one QR (exactly 1 admitted, all 20 logged), a storm of 10 double-clicks with the same idempotency key (1 order), and the rest of the edge cases.
 
 ```
-$ pytest
-........................................                    [100%]
-40 passed
-```
+$ pytest -v tests/test_concurrency.py
+tests/test_concurrency.py::test_100_buyers_race_for_the_last_seat_exactly_one_wins PASSED                                    [ 20%]
+tests/test_concurrency.py::test_multi_ticket_orders_are_all_or_nothing_under_contention PASSED                               [ 40%]
+tests/test_concurrency.py::test_concurrent_capacity_cut_and_sales_never_go_negative PASSED                                   [ 60%]
+tests/test_concurrency.py::test_naive_read_then_write_oversells PASSED                                                       [ 80%]
+tests/test_concurrency.py::test_check_constraint_is_the_last_line_of_defense PASSED                                          [100%]
 
-> 📸 *Add a screenshot of `pytest -v tests/test_concurrency.py` here.*
+5 passed in 11.77s
+
+$ pytest
+43 passed
+```
 
 ---
 
@@ -117,7 +127,17 @@ Every scan attempt, including forged codes, is recorded in `check_in_events` for
 
 ### Auth and roles
 
-Passwords are hashed with argon2id. Access JWTs last 15 minutes, with 7-day refresh tokens. The token carries only the user id and the admin flag. Being an organizer (`events.organizer_id`) or staff (`staff_assignments`) is looked up on every request, so revoking a staffer takes effect immediately. Login returns the same error and takes the same time whether or not the email exists. Signup, login (per IP and per account), reservations and scans are rate-limited in Redis. If Redis is unavailable the limiter lets requests through; inventory safety never depends on it.
+| Role | Can do | How you get it |
+|---|---|---|
+| **User** | Browse, buy tickets, scan doors at events they're assigned to | Signing up |
+| **Organizer** | Everything a user can, plus create and run their own events and assign door staff | Request it in the app; the admin approves |
+| **Admin** | Everything: every event and user, approve organizers, suspend accounts | Your email is listed in the server's `ADMIN_EMAILS` setting |
+
+Admin is never stored in the database and can't be granted through the API: the stored role column only allows `user` or `organizer`, enforced by a CHECK constraint. So no admin-panel bug or crafted request can create an admin, and removing an email from `ADMIN_EMAILS` revokes admin on the next request. Door staff stays per-event: an organizer assigns any account by email.
+
+Roles and per-event access are looked up on every request, never baked into the token, so approving an organizer or removing a staffer takes effect immediately with no re-login. A demoted organizer keeps the events they already own but can't create new ones.
+
+Passwords are hashed with argon2id. Access JWTs last 15 minutes, with 7-day refresh tokens. Login returns the same error and takes the same time whether or not the email exists. Signup, login (per IP and per account), reservations, organizer requests and scans are rate-limited in Redis. If Redis is unavailable the limiter lets requests through; inventory safety never depends on it.
 
 ---
 
@@ -195,7 +215,10 @@ docker compose up -d postgres redis
 | `GET /me/tickets` · `/me/holds` · `/me/events` · `/me/staff-events` | user | Personal views |
 | `POST /checkins` | owner, staff | Scan `{qr, event_id}` and get a verdict |
 | `WS /ws/events/{id}?token=` | public / staff | Live seats; check-ins for staff |
-| `POST /admin/users/{id}/suspend` · `/admin/events/{id}/suspend` | admin | Platform moderation |
+| `POST/DELETE /me/organizer-request` | user | Ask for (or withdraw a request for) organizer access |
+| `GET /admin/stats` · `GET /admin/users` · `GET /admin/events` | admin | Platform totals, searchable users (with the request queue), and every event in every state |
+| `PATCH /admin/users/{id}` | admin | Approve or decline organizer requests, change role (user or organizer only), suspend or restore |
+| `POST /admin/events/{id}/suspend` | admin | Cancel any event (refunds paid orders) |
 
 Status codes: `409` means the world changed under you (a lost race or an already-used ticket). `410` means the hold expired. `422` means bad input or an invalid QR. `403` means a role or scoping failure. `401` means a missing or expired token.
 
@@ -211,4 +234,4 @@ Real card settlement (payments are simulated with the authorize → capture/void
 
 ## Deploying
 
-Any host with Postgres, Redis and a worker process works (Render, Fly.io, Railway, AWS). Set `ENVIRONMENT=production`, `SECRET_KEY` and `QR_SECRET` (random, 32+ bytes; the API refuses to boot otherwise), `DATABASE_URL`, `REDIS_URL` and `CORS_ORIGINS`. Build the web image with `NEXT_PUBLIC_API_URL` set to the public API URL. The API image runs `alembic upgrade head` on start.
+Any host with Postgres, Redis and a worker process works (Render, Fly.io, Railway, AWS). Set `ENVIRONMENT=production`, `SECRET_KEY` and `QR_SECRET` (random, 32+ bytes; the API refuses to boot otherwise), `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGINS` and `ADMIN_EMAILS`. Emails aren't verified, so **create your own account first**, then add its address to `ADMIN_EMAILS` on both the api and worker services. Once your account exists, nobody else can register that address. Build the web image with `NEXT_PUBLIC_API_URL` set to the public API URL. The API image runs `alembic upgrade head` on start.

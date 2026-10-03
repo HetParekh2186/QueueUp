@@ -37,6 +37,7 @@ export function StatusPill({ status }: { status: string }) {
     draft: "bg-warn/15 text-warn",
     held: "bg-warn/15 text-warn",
     pending: "bg-warn/15 text-warn",
+    suspended: "bg-bad/15 text-bad",
     cancelled: "bg-bad/15 text-bad",
     expired: "bg-bad/15 text-bad",
     refunded: "bg-bad/15 text-bad",

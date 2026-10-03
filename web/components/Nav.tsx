@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { canOrganize } from "@/lib/types";
 
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
@@ -37,7 +38,8 @@ export function Nav() {
     <>
       {link("/events", "Events")}
       {user && link("/tickets", "My tickets")}
-      {user && link("/organizer", "Organize")}
+      {canOrganize(user) && link("/organizer", "Organize")}
+      {user?.role === "admin" && link("/admin", "Admin")}
     </>
   );
 

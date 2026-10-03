@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     environment: str = "development"
 
+    # Comma-separated. The only way to be an admin: never stored in the database,
+    # never grantable through the API.
+    admin_emails: str = ""
+
     def check_production_secrets(self) -> None:
         """Refuse to boot a production deployment with dev or short secrets."""
         if self.environment != "production":
@@ -44,6 +48,10 @@ class Settings(BaseSettings):
             value = getattr(self, name)
             if value.startswith("dev-") or len(value) < 32:
                 raise RuntimeError(f"{name.upper()} must be set to a random value of 32+ bytes in production")
+
+    @cached_property
+    def admin_email_set(self) -> frozenset[str]:
+        return frozenset(e.strip().lower() for e in self.admin_emails.split(",") if e.strip())
 
     @cached_property
     def cors_origin_list(self) -> list[str]:

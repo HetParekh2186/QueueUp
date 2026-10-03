@@ -26,7 +26,7 @@ log = logging.getLogger("queueup.auth")
 
 def _tokens(user: User) -> TokenOut:
     return TokenOut(
-        access_token=create_access_token(user.id, user.is_admin),
+        access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
         user=UserOut.model_validate(user),
     )

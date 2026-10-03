@@ -39,10 +39,46 @@ class RefreshIn(BaseModel):
 
 
 class UserOut(Out):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     id: uuid.UUID
     email: str
     display_name: str
+    # "user" | "organizer" | "admin". Admin is computed from ADMIN_EMAILS, never stored.
+    role: str = Field(validation_alias="effective_role")
     is_admin: bool
+    organizer_requested_at: datetime | None = None
+
+
+class AdminUserOut(UserOut):
+    is_suspended: bool
+    created_at: datetime
+    events_organized: int = 0
+    tickets_held: int = 0
+
+
+class AdminUserList(BaseModel):
+    items: list[AdminUserOut]
+    total: int
+
+
+class AdminUserPatch(BaseModel):
+    # Only these two can ever be granted here; "admin" is rejected by validation.
+    role: Literal["user", "organizer"] | None = None
+    suspended: bool | None = None
+    decline_request: bool = False
+
+
+class AdminStats(BaseModel):
+    users: int
+    organizers: int
+    pending_requests: int
+    suspended: int
+    events_by_status: dict[str, int]
+    tickets_sold: int
+    checked_in: int
+    revenue_cents: int
+
 
 
 class TokenOut(BaseModel):
@@ -231,3 +267,8 @@ class CheckinIn(BaseModel):
 
 class SuspendIn(BaseModel):
     suspended: bool = True
+
+
+class AdminEventList(BaseModel):
+    items: list[EventSummary]
+    total: int

@@ -5,9 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.deps import get_current_user
 from app.models import Event, Order, StaffAssignment, Ticket, User
+from app.ratelimit import RateLimit
 from app.routers.events import _summaries, _summary_query
 from app.routers.orders import load_order, ticket_out, ticket_query
-from app.schemas import EventSummary, OrderOut, TicketOut
+from app.schemas import EventSummary, OrderOut, TicketOut, UserOut
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -58,3 +59,27 @@ async def my_staff_events(user: User = Depends(get_current_user), session: Async
         )
     ).all()
     return _summaries(rows)
+
+
+@router.post(
+    "/organizer-request",
+    response_model=UserOut,
+    dependencies=[Depends(RateLimit("org-request", 5, 3600, per="user"))],
+)
+async def request_organizer(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    """Ask the admin for the organizer role. Idempotent, and a no-op for organizers."""
+    if not user.can_organize:
+        await session.execute(
+            sa.update(User)
+            .where(User.id == user.id, User.organizer_requested_at.is_(None))
+            .values(organizer_requested_at=sa.func.now())
+        )
+        await session.commit()
+    return await session.get(User, user.id)
+
+
+@router.delete("/organizer-request", response_model=UserOut)
+async def withdraw_organizer_request(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    await session.execute(sa.update(User).where(User.id == user.id).values(organizer_requested_at=None))
+    await session.commit()
+    return await session.get(User, user.id)
