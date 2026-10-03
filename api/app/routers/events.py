@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.db import get_session
+from app.demo import DEMO_DOMAIN
 from app.deps import (
     can_manage,
     can_scan,
@@ -111,10 +112,6 @@ def _summary_query():
         .join(User, User.id == Event.organizer_id)
     )
 
-
-# Events created by scripts/seed_demo.py. Flagged so every surface can label them as
-# demonstration data instead of passing them off as real listings.
-DEMO_DOMAIN = "@demo.queueup.app"
 
 
 def _summaries(rows) -> list[EventSummary]:
