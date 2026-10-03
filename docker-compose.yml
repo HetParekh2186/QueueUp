@@ -1,0 +1,66 @@
+name: queueup
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql+asyncpg://queueup:queueup@postgres:5432/queueup
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me}
+  QR_SECRET: ${QR_SECRET:-dev-qr-secret-change-me}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  HOLD_SECONDS: ${HOLD_SECONDS:-600}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: queueup
+      POSTGRES_PASSWORD: queueup
+      POSTGRES_DB: queueup
+    command: ["postgres", "-c", "max_connections=200"]
+    ports: ["${POSTGRES_HOST_PORT:-5433}:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U queueup"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["${REDIS_HOST_PORT:-6380}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    environment: *api-env
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      retries: 20
+
+  worker:
+    build: ./api
+    environment: *api-env
+    command: celery -A app.worker worker --beat --loglevel=info --concurrency=2
+    depends_on:
+      api: {condition: service_healthy}  # api runs migrations first
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    ports: ["3000:3000"]
+    depends_on:
+      api: {condition: service_healthy}
+
+volumes:
+  pgdata:
