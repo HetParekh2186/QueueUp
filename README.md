@@ -94,7 +94,7 @@ flowchart LR
   W -- publish --> R
 ```
 
-- **web**: Next.js App Router. The landing page is a ballpark-scoreboard pitch that replays the race test live. Its visual system is documented in [DESIGN.md](DESIGN.md) and the product context in [PRODUCT.md](PRODUCT.md). The public event pages are server-rendered. Checkout, tickets, the organizer console and the scanner are client pages.
+- **web**: Next.js App Router. The landing page shows live platform totals on a ballpark scoreboard, and `/about` explains and replays the 100-buyer race. Its visual system is documented in [DESIGN.md](DESIGN.md) and the product context in [PRODUCT.md](PRODUCT.md). The public event pages are server-rendered. Checkout, tickets, the organizer console and the scanner are client pages.
 - **api**: FastAPI with async SQLAlchemy/asyncpg. Compose runs 2 uvicorn workers so the real-time path is exercised across processes.
 - **worker**: Celery with beat. It sweeps expired holds every 15s, closes past events, sends reminder emails 24h ahead, and runs an hourly inventory reconcile.
 - **postgres**: the source of truth. The schema is in [`api/alembic/versions/0001_initial.py`](api/alembic/versions/0001_initial.py).

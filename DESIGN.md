@@ -220,7 +220,9 @@ At night the app's `accent` swaps from Scoreboard Green to Enamel Plate (with pl
 
 The landing page is a set of full-bleed bands (board, plate, board-deep) holding a centered column with a 72rem max width. Side gutters are 18px on mobile and 24px from `sm` up. Everything is set on one module, `--m` = 24px, the slot pitch. Section padding is 3m (72px), rising to 4m (96px) at 1024px. Grid gaps are 2m. Table column widths are 8m, 11m and 12m. The step blocks are 6m square, rising to 8m. The date stub is 3m wide. Smaller gaps use the module's fractions: m/3 (the bulb matrix pitch), m/2, 3/4 m and 1.5m. Padding inside components (buttons, chips, plates) uses the 4px utility scale.
 
-The first viewport splits 1.3fr to 1fr at `lg`: the stencil headline and the two equal plate buttons on the left, the 10x10 race board on the right. Below `lg` the board stacks under the headline. On narrow screens the line-score table collapses into stacked rows (`md` and below hides its header). The CTA pair splits into two columns from 440px.
+The landing's first viewport splits 1.25fr to 1fr at `lg`: the stencil headline on the left, the copy and the two equal plate buttons on the right. Below it, full width, sits the Totals Board. Below `lg` everything stacks. The CTA pair splits into two columns from 440px.
+
+The About page (`/about`) uses the same bands and module. It holds the Race Board with a "how to read it" key beside it, and the line-score table, which collapses into stacked rows at `md` and below.
 
 App pages use a plain 72rem container with 16px gutters, 32px top padding and 96px bottom padding. They follow the standard Tailwind spacing scale, not the module.
 
@@ -272,7 +274,10 @@ Enamel plates bolted to the board: square, stenciled, flat.
 ### Navigation
 A sticky 56px board-green bar on every page. The wordmark is Stencil 800 uppercase with an amber bulb dot. Links are Big Shoulders 700, 15px, uppercase, 0.08em tracking, board-muted, and turn board-text on hover. The active link gets a 2px amber underline that runs the full bar height. Sign up is a small plate. Log out is a board outline button.
 
-### Race Board (signature)
+### Totals Board (landing signature)
+Three equal-width numeral plates in a deep-board tray, labeled Tickets sold, Checked in (amber label: the live, lit count) and Events on sale, from the public `GET /stats` totals. Each plate fills its column with the numeral centered, so the row reads as one scoreboard rather than three sizes. Numerals are 5rem on phones and up to 9rem on desktop. On phones each total becomes a row, label left and plate right. The plates flip into place on load, staggered 90ms left to right, and any plate whose value changes flips again. A bulb in the corner reads Live while the 10-second poll succeeds and Connecting when it doesn't. The caption says when the totals include demo events.
+
+### Race Board (About page)
 A 10x10 grid of bulbs in a deep-board tray, spaced at m/3, under a row of four labeled plates: Seats left, Requests, an arrow, then In (amber label) and Out (dashed-red key). Bulb states:
 - **off:** dark socket with a faint amber hairline at 16% opacity.
 - **lit:** solid amber.
