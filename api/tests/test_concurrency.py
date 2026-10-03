@@ -12,11 +12,11 @@ import sqlalchemy as sa
 from app.db import SessionLocal
 from app.models import Order, Ticket, TicketType
 
-from .conftest import make_event, make_user, make_users, reserve, sql
+from .conftest import make_event, make_organizer, make_users, reserve, sql
 
 
 async def test_100_buyers_race_for_the_last_seat_exactly_one_wins(client):
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     event_id, type_id = await make_event(client, organizer, capacity=1)
     buyers = await make_users(100)
 
@@ -40,7 +40,7 @@ async def test_100_buyers_race_for_the_last_seat_exactly_one_wins(client):
 async def test_multi_ticket_orders_are_all_or_nothing_under_contention(client):
     """50 buyers each want 3 of 10 seats: exactly 3 orders fit (9 seats), nobody gets a
     partial order, and the 10th seat stays unsold."""
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     event_id, type_id = await make_event(client, organizer, capacity=10)
     buyers = await make_users(50)
 
@@ -59,7 +59,7 @@ async def test_multi_ticket_orders_are_all_or_nothing_under_contention(client):
 async def test_concurrent_capacity_cut_and_sales_never_go_negative(client):
     """The organizer lowers capacity while buyers race. Whatever interleaving happens,
     sold never exceeds capacity."""
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     event_id, type_id = await make_event(client, organizer, capacity=20)
     buyers = await make_users(40)
 
@@ -80,7 +80,7 @@ async def test_naive_read_then_write_oversells(client):
     """Documents the bug QueueUp exists to avoid. This is the 'strategy 1' code from the
     spec — count, compare, insert — with no lock. Run concurrently, it sells 51 of 50
     (here: far more than 1 of 1). Kept as a test so the failure mode stays reproducible."""
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     event_id, type_id = await make_event(client, organizer, capacity=1)
     buyers = await make_users(20)
 
@@ -109,7 +109,7 @@ async def test_naive_read_then_write_oversells(client):
 
 async def test_check_constraint_is_the_last_line_of_defense(client):
     """Even a buggy code path that skips locking can't push sold past capacity."""
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     _, type_id = await make_event(client, organizer, capacity=2)
     try:
         await sql("UPDATE ticket_types SET sold = 3 WHERE id = :id", id=type_id)

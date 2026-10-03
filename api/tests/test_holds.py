@@ -6,7 +6,7 @@ import uuid
 from app.db import SessionLocal
 from app.services import jobs
 
-from .conftest import make_event, make_user, make_users, reserve, sql
+from .conftest import make_event, make_organizer, make_user, make_users, reserve, sql
 
 
 async def expire_now(order_id: str) -> None:
@@ -18,7 +18,7 @@ async def expire_now(order_id: str) -> None:
 
 
 async def test_reserve_confirm_happy_path_issues_qr(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, capacity=5, price_cents=1500)
 
     r = await reserve(client, buyer, event_id, type_id, quantity=2)
@@ -42,7 +42,7 @@ async def test_reserve_confirm_happy_path_issues_qr(client):
 
 
 async def test_confirm_after_expiry_is_410_gone(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer)
     order_id = (await reserve(client, buyer, event_id, type_id)).json()["id"]
     await expire_now(order_id)
@@ -53,7 +53,7 @@ async def test_confirm_after_expiry_is_410_gone(client):
 
 
 async def test_declined_payment_keeps_the_hold(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer)
     order_id = (await reserve(client, buyer, event_id, type_id)).json()["id"]
 
@@ -66,7 +66,7 @@ async def test_declined_payment_keeps_the_hold(client):
 async def test_confirm_and_sweeper_race_never_both_win(client):
     """The user clicks pay at the instant the hold expires and the sweeper runs. The
     mirrored guards mean exactly one of them owns the outcome — never both."""
-    organizer = await make_user("organizer")
+    organizer = await make_organizer("organizer")
     event_id, type_id = await make_event(client, organizer, capacity=50)
     buyers = await make_users(25)
     orders = []
@@ -99,7 +99,7 @@ async def test_confirm_and_sweeper_race_never_both_win(client):
 async def test_expired_but_unswept_hold_does_not_block_a_buyer(client):
     """The sweeper runs every ~15s. A hold that expired a second ago must not make the
     event look sold out in the meantime."""
-    organizer, first, second = await make_user("organizer"), await make_user("a"), await make_user("b")
+    organizer, first, second = await make_organizer("organizer"), await make_user("a"), await make_user("b")
     event_id, type_id = await make_event(client, organizer, capacity=1)
     order_id = (await reserve(client, first, event_id, type_id)).json()["id"]
     assert (await reserve(client, second, event_id, type_id)).status_code == 409
@@ -112,7 +112,7 @@ async def test_expired_but_unswept_hold_does_not_block_a_buyer(client):
 
 
 async def test_release_returns_seat(client):
-    organizer, buyer, other = await make_user("organizer"), await make_user("buyer"), await make_user("other")
+    organizer, buyer, other = await make_organizer("organizer"), await make_user("buyer"), await make_user("other")
     event_id, type_id = await make_event(client, organizer, capacity=1)
     order_id = (await reserve(client, buyer, event_id, type_id)).json()["id"]
 
@@ -122,7 +122,7 @@ async def test_release_returns_seat(client):
 
 
 async def test_cannot_touch_someone_elses_order(client):
-    organizer, buyer, thief = await make_user("organizer"), await make_user("buyer"), await make_user("thief")
+    organizer, buyer, thief = await make_organizer("organizer"), await make_user("buyer"), await make_user("thief")
     event_id, type_id = await make_event(client, organizer)
     order_id = (await reserve(client, buyer, event_id, type_id)).json()["id"]
     assert (await client.post(f"/orders/{order_id}/confirm", json={}, headers=thief.headers)).status_code == 404
@@ -130,7 +130,7 @@ async def test_cannot_touch_someone_elses_order(client):
 
 
 async def test_idempotency_key_replay_returns_original_order(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer)
     key = str(uuid.uuid4())
 
@@ -144,7 +144,7 @@ async def test_idempotency_key_replay_returns_original_order(client):
 async def test_double_click_storm_creates_one_hold(client):
     """Ten simultaneous submits with one idempotency key (a frantic double-click plus
     client retries) produce exactly one order."""
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, capacity=100)
     key = str(uuid.uuid4())
 
@@ -157,7 +157,7 @@ async def test_double_click_storm_creates_one_hold(client):
 
 
 async def test_quantity_and_per_user_limits(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, capacity=100)
     assert (await reserve(client, buyer, event_id, type_id, quantity=0)).status_code == 422
     assert (await reserve(client, buyer, event_id, type_id, quantity=11)).status_code == 422
@@ -167,7 +167,7 @@ async def test_quantity_and_per_user_limits(client):
 
 
 async def test_refund_returns_seats_but_not_after_check_in(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, capacity=2)
     r = await reserve(client, buyer, event_id, type_id)
     order_id = r.json()["id"]
@@ -187,7 +187,7 @@ async def test_refund_returns_seats_but_not_after_check_in(client):
 
 
 async def test_sweeper_and_reconcile_are_idempotent(client):
-    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    organizer, buyer = await make_organizer("organizer"), await make_user("buyer")
     event_id, type_id = await make_event(client, organizer, capacity=3)
     order_id = (await reserve(client, buyer, event_id, type_id, quantity=2)).json()["id"]
     await expire_now(order_id)

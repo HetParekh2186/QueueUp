@@ -12,6 +12,7 @@ TEST_DB = os.getenv(
 os.environ["DATABASE_URL"] = TEST_DB
 os.environ.setdefault("REDIS_URL", "redis://localhost:6380/15")
 os.environ["RATE_LIMIT_ENABLED"] = "false"
+os.environ["ADMIN_EMAILS"] = "site-admin@example.com"
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-bytes"
 os.environ["QR_SECRET"] = "test-qr-secret-that-is-at-least-32-bytes"
 # Enough connections that 100 concurrent requests genuinely race in the database.
@@ -77,20 +78,26 @@ async def client():
 
 
 class Actor:
-    def __init__(self, user_id: uuid.UUID, email: str, is_admin: bool = False):
+    def __init__(self, user_id: uuid.UUID, email: str):
         self.id = user_id
         self.email = email
-        self.headers = {"Authorization": f"Bearer {create_access_token(user_id, is_admin)}"}
+        self.headers = {"Authorization": f"Bearer {create_access_token(user_id)}"}
 
 
-async def make_user(name: str = "user", is_admin: bool = False) -> Actor:
-    """Insert a user directly (skipping argon2, which is deliberately slow)."""
-    email = f"{name}-{uuid.uuid4().hex[:8]}@example.com"
+async def make_user(name: str = "user", is_admin: bool = False, role: str = "user") -> Actor:
+    """Insert a user directly (skipping argon2, which is deliberately slow).
+
+    Admins exist only through ADMIN_EMAILS, so an admin fixture uses that address."""
+    email = "site-admin@example.com" if is_admin else f"{name.replace(' ', '-')}-{uuid.uuid4().hex[:8]}@example.com"
     async with SessionLocal() as s:
-        user = User(email=email, password_hash="x", display_name=name.title(), is_admin=is_admin)
+        user = User(email=email, password_hash="x", display_name=name.title(), role=role)
         s.add(user)
         await s.commit()
-        return Actor(user.id, email, is_admin)
+        return Actor(user.id, email)
+
+
+async def make_organizer(name: str = "organizer") -> Actor:
+    return await make_user(name, role="organizer")
 
 
 async def make_users(n: int, prefix: str = "buyer") -> list[Actor]:
@@ -101,7 +108,7 @@ async def make_users(n: int, prefix: str = "buyer") -> list[Actor]:
         ]
         s.add_all(users)
         await s.commit()
-        return [Actor(u.id, u.email) for u in users]
+        return [Actor(u.id, u.email) for u in users]  # plain users
 
 
 def future(days: int = 30) -> str:

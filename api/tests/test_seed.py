@@ -4,7 +4,7 @@ import pytest
 
 from app.seed import seed
 
-from .conftest import make_event, make_user, sql
+from .conftest import make_event, make_organizer, sql
 
 
 async def check_invariants() -> None:
@@ -42,7 +42,7 @@ async def check_invariants() -> None:
 
 
 async def test_seed_is_consistent_and_resettable(client):
-    real_organizer = await make_user("real organizer")
+    real_organizer = await make_organizer("real organizer")
     real_event, _ = await make_event(client, real_organizer)
 
     stats = await seed(attendees=60, password_hash="x")
