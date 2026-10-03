@@ -24,7 +24,7 @@ export function Nav() {
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={`flex h-full items-center border-b-2 px-2.5 font-display text-[15px] font-bold uppercase tracking-[0.08em] transition-colors ${
+        className={`flex h-full shrink-0 items-center whitespace-nowrap border-b-2 px-2.5 font-display text-[15px] font-bold uppercase tracking-[0.08em] transition-colors ${
           active ? "border-bulb text-board-text" : "border-transparent text-board-muted hover:text-board-text"
         }`}
       >
@@ -33,15 +33,21 @@ export function Nav() {
     );
   };
 
+  const links = (
+    <>
+      {link("/events", "Events")}
+      {user && link("/tickets", "My tickets")}
+      {user && link("/organizer", "Organize")}
+    </>
+  );
+
   return (
     <header className="sticky top-0 z-20 bg-board text-board-text">
       <nav className="mx-auto flex h-14 max-w-6xl items-stretch gap-1 px-4">
         <Link href="/" className="mr-4 flex items-center text-xl" aria-label="QueueUp home">
           <Wordmark />
         </Link>
-        {link("/events", "Events")}
-        {user && link("/tickets", "My tickets")}
-        {user && link("/organizer", "Organize")}
+        <div className="hidden items-stretch gap-1 sm:flex">{links}</div>
         <div className="ml-auto flex items-center gap-3">
           {ready && !user && (
             <>
@@ -74,6 +80,10 @@ export function Nav() {
             </>
           )}
         </div>
+      </nav>
+      {/* Phones: the section links get their own strip so nothing overflows. */}
+      <nav aria-label="Sections" className="flex h-11 items-stretch gap-1 overflow-x-auto border-t border-board-rule px-2 sm:hidden">
+        {links}
       </nav>
     </header>
   );
