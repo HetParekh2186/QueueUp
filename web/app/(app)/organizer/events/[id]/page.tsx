@@ -184,6 +184,7 @@ function Manage() {
                   capacity={t.capacity}
                   claimed={t.sold}
                   checkedIn={s?.checked_in ?? 0}
+                  waiting={s?.waiting ?? 0}
                   editable={editable}
                   onCapacity={(capacity) =>
                     run(() => api(`/events/${id}/ticket-types/${t.id}`, { method: "PATCH", body: { capacity } }), "Capacity updated.")
@@ -258,6 +259,7 @@ function TierRow(props: {
   capacity: number;
   claimed: number;
   checkedIn: number;
+  waiting: number;
   editable: boolean;
   onCapacity: (n: number) => void;
 }) {
@@ -270,6 +272,12 @@ function TierRow(props: {
         <div className="text-sm text-muted">
           {money(props.price)} · <span className="font-mono">{props.claimed}</span> claimed ·{" "}
           <span className="font-mono">{props.checkedIn}</span> in
+          {props.waiting > 0 && (
+            <>
+              {" · "}
+              <span className="font-mono text-warn">{props.waiting}</span> waiting
+            </>
+          )}
         </div>
       </div>
       {props.editable ? (

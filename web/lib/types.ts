@@ -38,6 +38,7 @@ export type TicketType = {
   capacity: number;
   sold: number;
   remaining: number;
+  waiting: number;
 };
 
 export type EventStatus = "draft" | "published" | "cancelled" | "ended";
@@ -118,6 +119,7 @@ export type Dashboard = {
     confirmed: number;
     checked_in: number;
     remaining: number;
+    waiting: number;
   }[];
   recent_scans: {
     scanned_at: string;
@@ -136,3 +138,20 @@ export type SocketMessage =
   | { type: "checkin"; checked_in: number }
   | { type: "orders" }
   | { type: "event"; status: EventStatus };
+
+export type WaitlistEntry = {
+  id: string;
+  event_id: string;
+  event_title: string;
+  event_status: EventStatus;
+  starts_at: string;
+  timezone: string;
+  ticket_type_id: string;
+  ticket_type: string;
+  quantity: number;
+  status: "waiting" | "offered" | "claimed" | "expired" | "left" | "cancelled";
+  position: number | null;
+  order_id: string | null;
+  offer_expires_at: string | null;
+  created_at: string;
+};

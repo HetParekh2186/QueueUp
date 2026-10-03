@@ -7,7 +7,7 @@ import { CheckIcon } from "@/components/icons";
 import { ErrorBanner, QrImage, RequireAuth, StatusPill } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { eventTime, money } from "@/lib/format";
-import type { EventSummary, Order, Ticket } from "@/lib/types";
+import type { EventSummary, Order, Ticket, WaitlistEntry } from "@/lib/types";
 
 export default function TicketsPage() {
   return (
@@ -41,6 +41,7 @@ function Tickets() {
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [holds, setHolds] = useState<Order[]>([]);
   const [shifts, setShifts] = useState<EventSummary[]>([]);
+  const [lines, setLines] = useState<WaitlistEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("upcoming");
@@ -48,16 +49,33 @@ function Tickets() {
   const [q, setQ] = useState("");
 
   const load = useCallback(() => {
-    Promise.all([api<Ticket[]>("/me/tickets"), api<Order[]>("/me/holds"), api<EventSummary[]>("/me/staff-events")])
-      .then(([t, h, s]) => {
+    Promise.all([
+      api<Ticket[]>("/me/tickets"),
+      api<Order[]>("/me/holds"),
+      api<EventSummary[]>("/me/staff-events"),
+      api<WaitlistEntry[]>("/me/waitlist"),
+    ])
+      .then(([t, h, s, w]) => {
         setTickets(t);
-        setHolds(h);
+        setLines(w.filter((e) => e.status === "waiting" || e.status === "offered"));
+        // A seat held from the waitlist is shown once, in the waitlist section.
+        const offered = new Set(w.filter((e) => e.status === "offered").map((e) => e.order_id));
+        setHolds(h.filter((o) => !offered.has(o.id)));
         // Door shifts: events you're assigned to scan that haven't finished.
         setShifts(s.filter((e) => e.status === "published"));
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
   useEffect(load, [load]);
+
+  async function leave(entryId: string) {
+    try {
+      await api(`/waitlist/${entryId}`, { method: "DELETE" });
+      load();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
 
   async function refund(orderId: string) {
     if (!confirm("Refund this order? All tickets on it will be cancelled and the seats released.")) return;
@@ -111,6 +129,50 @@ function Tickets() {
                 </Link>
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+
+      {lines.length > 0 && (
+        <section className="mt-6">
+          <h2 className="label">Waitlist</h2>
+          <ul className="space-y-2">
+            {lines.map((e) =>
+              e.status === "offered" ? (
+                <li key={e.id} className="card flex flex-wrap items-center justify-between gap-3 border-ok p-4">
+                  <span className="min-w-0">
+                    <span className="font-semibold">{e.event_title}</span>
+                    <span className="block text-sm">
+                      <span className="font-semibold text-ok">A seat is held for you.</span>{" "}
+                      <span className="text-muted">
+                        {e.quantity} × {e.ticket_type}, pay by{" "}
+                        {new Date(e.offer_expires_at!).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                      </span>
+                    </span>
+                  </span>
+                  <Link href={`/checkout/${e.order_id}`} className="btn-primary !py-1.5">
+                    Finish checkout
+                  </Link>
+                </li>
+              ) : (
+                <li key={e.id} className="card flex flex-wrap items-center gap-4 p-4">
+                  <span className="plate-num grid h-11 min-w-10 place-items-center px-2 text-2xl" aria-label={`Number ${e.position} in line`}>
+                    {e.position}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <Link href={`/events/${e.event_id}`} className="font-semibold hover:text-accent">
+                      {e.event_title}
+                    </Link>
+                    <span className="block text-sm text-muted">
+                      #{e.position} in line for {e.quantity} × {e.ticket_type} · {eventTime(e.starts_at, e.timezone)}
+                    </span>
+                  </span>
+                  <button className="text-sm text-muted underline underline-offset-4 hover:text-bad" onClick={() => leave(e.id)}>
+                    Leave
+                  </button>
+                </li>
+              ),
+            )}
           </ul>
         </section>
       )}
@@ -180,7 +242,7 @@ function Tickets() {
         </p>
       )}
 
-      {tickets && !hasAny && holds.length === 0 && (
+      {tickets && !hasAny && holds.length === 0 && lines.length === 0 && (
         <div className="card mt-8 p-10 text-center">
           <p className="font-display text-xl font-semibold">No tickets yet</p>
           <Link href="/events" className="btn-primary mt-4">

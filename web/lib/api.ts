@@ -102,7 +102,11 @@ export function wsUrl(path: string): string {
 }
 
 const MESSAGES: Record<string, string> = {
-  sold_out: "Sold out — someone got there first.",
+  sold_out: "Sold out. Join the waitlist and a seat is held for you if one frees up.",
+  seats_available: "Seats just opened up. Reserve one instead of waiting.",
+  already_waiting: "You're already on the waitlist for this ticket.",
+  offer_pending: "A seat is already being held for you. Pay for it or release it from checkout.",
+  not_waiting: "You're not in line for this anymore.",
   duplicate_request: "That reservation was already submitted.",
   event_not_on_sale: "This event isn't on sale.",
   per_user_limit: "You've reached the ticket limit for this tier.",

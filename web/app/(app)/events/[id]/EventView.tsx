@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorBanner, LiveDot, StatusPill } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { eventTime, money, uuid } from "@/lib/format";
-import type { EventDetail, Order } from "@/lib/types";
+import type { EventDetail, Order, WaitlistEntry } from "@/lib/types";
 import { useEventSocket } from "@/lib/useEventSocket";
 
 export function EventView({ id, initial }: { id: string; initial: EventDetail | null }) {
@@ -20,6 +20,7 @@ export function EventView({ id, initial }: { id: string; initial: EventDetail | 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [mine, setMine] = useState<WaitlistEntry[]>([]);
   // One key per *intent*: a double-click or a retry re-sends the same key, so the
   // server returns the original hold instead of creating a second one.
   const intentKey = useRef(uuid());
@@ -39,6 +40,22 @@ export function EventView({ id, initial }: { id: string; initial: EventDetail | 
       if (first) setSelected(first.id);
     }
   }, [event, selected]);
+
+  // Your places in line for this event. While you're waiting, check every 20s so a
+  // seat held for you shows up without a refresh.
+  const loadMine = useCallback(() => {
+    if (!user) return setMine([]);
+    api<WaitlistEntry[]>("/me/waitlist")
+      .then((all) => setMine(all.filter((e) => e.event_id === id && (e.status === "waiting" || e.status === "offered"))))
+      .catch(() => {});
+  }, [id, user]);
+  useEffect(loadMine, [loadMine]);
+  const waitingHere = mine.some((e) => e.status === "waiting");
+  useEffect(() => {
+    if (!waitingHere) return;
+    const t = setInterval(loadMine, 20_000);
+    return () => clearInterval(t);
+  }, [waitingHere, loadMine]);
 
   const live = useEventSocket(id, (msg) => {
     if (msg.type === "seats") {
@@ -63,6 +80,39 @@ export function EventView({ id, initial }: { id: string; initial: EventDetail | 
   const type = event.ticket_types.find((t) => t.id === selected);
   const onSale = event.status === "published";
   const maxQty = Math.max(1, Math.min(10, type?.remaining ?? 1));
+  const entry = type ? mine.find((e) => e.ticket_type_id === type.id) : undefined;
+  const soldOut = Boolean(type && type.remaining <= 0);
+
+  async function joinWaitlist() {
+    if (!user) {
+      router.push(`/login?next=/events/${id}`);
+      return;
+    }
+    if (!type) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/events/${id}/waitlist`, { method: "POST", body: { ticket_type_id: type.id, quantity } });
+      loadMine();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function leaveWaitlist(entryId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/waitlist/${entryId}`, { method: "DELETE" });
+      loadMine();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function reserve() {
     if (!user) {
@@ -140,7 +190,7 @@ export function EventView({ id, initial }: { id: string; initial: EventDetail | 
                     key={t.id}
                     role="radio"
                     aria-checked={selected === t.id}
-                    disabled={out || !onSale}
+                    disabled={!onSale}
                     onClick={() => {
                       setSelected(t.id);
                       setQuantity(1);
@@ -159,6 +209,9 @@ export function EventView({ id, initial }: { id: string; initial: EventDetail | 
                       }`}
                     >
                       {out ? "Sold out" : `${t.remaining} left`}
+                      {out && t.waiting > 0 && (
+                        <span className="block text-right text-[11px] font-normal text-muted">{t.waiting} waiting</span>
+                      )}
                     </span>
                   </button>
                 );
@@ -169,7 +222,64 @@ export function EventView({ id, initial }: { id: string; initial: EventDetail | 
           <div className="slot-rule-light" />
 
           <div className="space-y-3 p-5">
-            {onSale ? (
+            {onSale && entry?.status === "offered" ? (
+              <div className="space-y-3 text-center">
+                <p className="font-display text-xl font-bold uppercase tracking-[0.04em] text-ok">A seat is held for you</p>
+                <p className="text-sm text-muted">
+                  Someone gave theirs up and you were next in line. Pay by{" "}
+                  <span className="font-semibold text-ink">
+                    {new Date(entry.offer_expires_at!).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                  </span>{" "}
+                  or it passes to the next person.
+                </p>
+                <Link href={`/checkout/${entry.order_id}`} className="btn-primary w-full">
+                  Finish checkout
+                </Link>
+              </div>
+            ) : onSale && entry?.status === "waiting" ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <span className="plate-num grid h-14 min-w-12 place-items-center px-2 text-3xl">{entry.position}</span>
+                  <div>
+                    <p className="font-display text-lg font-bold uppercase leading-tight tracking-[0.04em]">
+                      You&apos;re #{entry.position} in line
+                    </p>
+                    <p className="text-sm text-muted">
+                      For {entry.quantity} × {entry.ticket_type}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted">
+                  When a seat frees up it&apos;s held for you automatically, first come first served. You&apos;ll have 15
+                  minutes to pay. It shows up here and in My tickets.
+                </p>
+                <ErrorBanner message={error} />
+                <button className="btn-ghost w-full" disabled={busy} onClick={() => leaveWaitlist(entry.id)}>
+                  Leave the waitlist
+                </button>
+              </div>
+            ) : onSale && soldOut ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="wqty" className="label !mb-0">
+                    Seats wanted
+                  </label>
+                  <select id="wqty" className="input !w-24" value={Math.min(quantity, 4)} onChange={(e) => setQuantity(Number(e.target.value))}>
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <ErrorBanner message={error} />
+                <button className="btn-primary w-full" disabled={busy || !type} onClick={joinWaitlist}>
+                  {busy ? "Joining…" : user ? "Join the waitlist" : "Log in to join the waitlist"}
+                </button>
+                <p className="text-center text-xs text-muted">
+                  {type && type.waiting > 0 ? `${type.waiting} ahead of you. ` : ""}If a seat frees up, it&apos;s held for
+                  you automatically.
+                </p>
+              </>
+            ) : onSale ? (
               <>
                 <div className="flex items-center justify-between">
                   <label htmlFor="qty" className="label !mb-0">
