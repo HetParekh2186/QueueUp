@@ -151,3 +151,47 @@ async def test_suspended_user_locked_out(client):
 async def test_health(client):
     r = await client.get("/health")
     assert r.status_code == 200 and r.json()["database"] == "ok"
+
+
+async def test_event_list_filters(client):
+    organizer, buyer = await make_user("organizer"), await make_user("buyer")
+    jazz, jazz_type = await make_event(client, organizer, capacity=1, price_cents=3000)
+    await client.patch(f"/events/{jazz}", json={"title": "Rooftop Jazz 100%"}, headers=organizer.headers)
+    free, _ = await make_event(client, organizer, capacity=50, price_cents=0)
+    await client.patch(f"/events/{free}", json={"title": "Builders Meetup", "venue": "Hall B, Austin"},
+                       headers=organizer.headers)
+    await buy(client, buyer, jazz, jazz_type)  # jazz is now sold out
+
+    async def ids(**params):
+        r = await client.get("/events", params=params)
+        assert r.status_code == 200, r.text
+        return {e["id"] for e in r.json()["items"]}
+
+    assert await ids(q="austin") == {free}  # venue match, case-insensitive
+    assert await ids(q="jazz 100%") == {jazz}  # % is literal, not a wildcard
+    assert await ids(q="100_") == set()
+    assert await ids(price="free") == {free}
+    assert await ids(price="paid") == {jazz}
+    assert await ids(available="true") == {free}
+
+    r = await client.get("/events", params={"starts_before": "2000-01-01T00:00:00Z"})
+    assert r.json()["items"] == []
+    assert (await client.get("/events", params={"price": "cheap"})).status_code == 422
+
+
+async def test_filtered_pagination_never_mixes_in_other_events(client):
+    organizer = await make_user("organizer")
+    free_ids = set()
+    for i in range(5):
+        eid, _ = await make_event(client, organizer, price_cents=0 if i % 2 == 0 else 500)
+        if i % 2 == 0:
+            free_ids.add(eid)
+    seen, cursor = [], None
+    while True:
+        params = {"limit": 1, "price": "free", **({"cursor": cursor} if cursor else {})}
+        page = (await client.get("/events", params=params)).json()
+        seen += [e["id"] for e in page["items"]]
+        cursor = page["next_cursor"]
+        if not cursor:
+            break
+    assert seen and set(seen) == free_ids and len(seen) == len(free_ids)

@@ -3,6 +3,7 @@ import csv
 import io
 import uuid
 from datetime import datetime
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
@@ -95,8 +96,9 @@ async def _event_out(session: AsyncSession, event: Event, user: User | None) -> 
     )
 
 
-def _summary_query():
-    agg = (
+def _event_stats():
+    """Per-event aggregates over its ticket tiers."""
+    return (
         sa.select(
             TicketType.event_id,
             sa.func.min(TicketType.price_cents).label("min_price_cents"),
@@ -104,8 +106,12 @@ def _summary_query():
             sa.func.coalesce(sa.func.sum(TicketType.capacity), 0).label("capacity"),
         )
         .group_by(TicketType.event_id)
-        .subquery()
+        .subquery("stats")
     )
+
+
+def _summary_query(agg=None):
+    agg = _event_stats() if agg is None else agg
     return (
         sa.select(Event, agg.c.min_price_cents, agg.c.remaining, agg.c.capacity, User.email)
         .outerjoin(agg, agg.c.event_id == Event.id)
@@ -125,19 +131,45 @@ def _summaries(rows) -> list[EventSummary]:
     ]
 
 
+def _like(term: str) -> str:
+    """A safe ILIKE pattern: the user's % and _ match literally."""
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 @router.get("/events", response_model=EventListOut)
 async def list_events(
     limit: int = Query(20, ge=1, le=50),
     cursor: str | None = None,
+    q: str | None = Query(None, max_length=100, description="Match title or venue (case-insensitive)"),
+    starts_after: datetime | None = Query(None, description="Only events starting at or after this instant"),
+    starts_before: datetime | None = Query(None, description="Only events starting before this instant"),
+    price: Literal["free", "paid"] | None = Query(None, description="free: has a free tier; paid: every tier costs"),
+    available: bool = Query(False, description="Hide sold-out events"),
     session: AsyncSession = Depends(get_session),
 ) -> EventListOut:
     """Published events, soonest first. Cursor pagination keyed on (starts_at, id), so a
-    newly published event never shifts or duplicates items across pages."""
-    q = _summary_query().where(Event.status == "published")
+    newly published event never shifts or duplicates items across pages. Filters are
+    applied in SQL, so every page of a filtered list is consistent with the first."""
+    stats = _event_stats()
+    stmt = _summary_query(stats).where(Event.status == "published")
+    if q and q.strip():
+        pattern = _like(q.strip())
+        stmt = stmt.where(sa.or_(Event.title.ilike(pattern, escape="\\"), Event.venue.ilike(pattern, escape="\\")))
+    if starts_after:
+        stmt = stmt.where(Event.starts_at >= starts_after)
+    if starts_before:
+        stmt = stmt.where(Event.starts_at < starts_before)
+    if price == "free":
+        stmt = stmt.where(stats.c.min_price_cents == 0)
+    elif price == "paid":
+        stmt = stmt.where(stats.c.min_price_cents > 0)
+    if available:
+        stmt = stmt.where(sa.func.coalesce(stats.c.remaining, 0) > 0)
     if cursor:
         ts, eid = _decode_cursor(cursor)
-        q = q.where(sa.tuple_(Event.starts_at, Event.id) > sa.tuple_(ts, eid))
-    rows = (await session.execute(q.order_by(Event.starts_at, Event.id).limit(limit + 1))).all()
+        stmt = stmt.where(sa.tuple_(Event.starts_at, Event.id) > sa.tuple_(ts, eid))
+    rows = (await session.execute(stmt.order_by(Event.starts_at, Event.id).limit(limit + 1))).all()
     items = _summaries(rows[:limit])
     next_cursor = _encode_cursor(items[-1].starts_at, items[-1].id) if len(rows) > limit else None
     return EventListOut(items=items, next_cursor=next_cursor)
