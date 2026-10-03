@@ -285,6 +285,17 @@ A 10x10 grid of bulbs in a deep-board tray, spaced at m/3, under a row of four l
 - **out:** transparent with a dashed out-red ring.
 The board replays once when it scrolls into view. The caption narrates the race politely to screen readers. Run it again stays disabled until the race finishes.
 
+### Door Scanner Verdicts
+The full-bleed verdict that covers the viewfinder after each scan, in the board's own grammar. It always pairs a drawn icon with a stencil word and a colour, never colour alone.
+- **Admitted:** solid bulb amber with plate-ink text and a check. Dark text on amber stays readable in a dark room.
+- **Already in:** white enamel with plate-ink text and an alert mark, plus who scanned the ticket first and when.
+- **Rejected:** board-deep with a thick dashed out-red frame inset from the edge, a red cross and plain-language reasons ("This ticket is for a different event.").
+
+The viewfinder's aim guide is four drawn corner brackets in bulb amber. No shadows or scrims. Below it, a Last scans strip keeps the four most recent verdicts, as the same three marks at bullet size, because each big verdict clears after 2.5 seconds.
+
+### Waitlist Panel
+On a sold-out tier, the event page's action area becomes "Join the waitlist" with a 1 to 4 seat picker. Once you've joined, your place in line shows as a numeral plate ("You're #3 in line"). When a seat is held for you, it becomes an ok-green "A seat is held for you" with the pay-by time and Finish checkout. The same three states appear in the Waitlist section of My tickets. Sold-out tiers stay selectable and show how many people are waiting.
+
 ### Numeral Plate
 White enamel, plate-ink numerals in Big Shoulders 800 with tabular figures, 3px corners, line-height 1. The plate flips when its value changes. Used for counts, HTTP codes in the line score, seats left, and the Oversold 0.
 

@@ -47,6 +47,7 @@ Every other race uses the same move: **a guarded `UPDATE … WHERE <expected sta
 | Double-clicked "reserve" | `orders.idempotency_key UNIQUE` | `409 duplicate_request` + the original `order_id` |
 | Refund racing a door scan | refund requires every ticket still `confirmed` | `409 already_checked_in` |
 | Organizer lowers capacity mid-sale | same row lock as reserve, `new_capacity >= sold` | `409 capacity_below_sold` |
+| A seat frees while people wait | promotion runs inside the same row lock, strictly first in line first | walk-up buyer gets `409 sold_out` with `waitlist: true` |
 
 **One lock order prevents deadlocks.** Every writer that touches more than one table takes locks in the order `ticket_types → orders → tickets`. Confirm and check-in never lock a ticket type. Because no two writers ever wait on each other in a cycle, there are no deadlocks.
 
@@ -75,7 +76,7 @@ tests/test_concurrency.py::test_check_constraint_is_the_last_line_of_defense PAS
 5 passed in 11.77s
 
 $ pytest
-43 passed
+64 passed
 ```
 
 ---
@@ -108,6 +109,15 @@ Reserving inserts tickets as `held` with `expires_at = now() + 10 min`. If nobod
 2. **Reserve itself** first expires any due holds on the type it just locked. So a hold that expired 3 seconds ago never makes the event look sold out while the sweeper hasn't caught up.
 
 Both paths run the same function, `expire_due_holds`. Every job can safely run twice: the sweeper's guard skips rows that are already expired, and reminders are claimed with `UPDATE … WHERE reminder_sent_at IS NULL` before the email is sent.
+
+### Waitlist
+
+When a ticket type sells out, people can join its waitlist for 1 to 4 seats. Whenever a seat frees up (an unpaid hold expires, someone releases or refunds, or the organizer adds capacity), the person at the front of the line automatically gets an ordinary hold with 15 minutes to pay. If they don't, it passes to the next person.
+
+- **Strictly first come, first served.** A freed seat goes to the line before any walk-up buyer, and nobody skips ahead: if the front person wants 2 seats and only 1 is free, everyone waits.
+- **Same guarantee as buying.** Promotion happens inside the ticket type's row lock, next to everything else that moves seats, so a freed seat can never be handed to two people. A test has 30 people join at once, then two sweepers and a walk-up buyer race for one freed seat: exactly one person ends up holding it, and it's whoever joined first.
+- **Freed seats stick.** Before serving a buyer, overdue holds are settled onto the waitlist in their own committed transaction, so the seats stay with the people in line even when the buyer's own request then fails.
+- **Self-healing.** The background sweeper also revisits any ticket type with people waiting and seats free, so a missed promotion is corrected within one sweep.
 
 ### Real-time
 
@@ -214,6 +224,7 @@ docker compose up -d postgres redis
 | `GET /orders/{id}` · `POST /orders/{id}/confirm` · `DELETE /orders/{id}` · `POST /orders/{id}/refund` | order owner | Checkout, release, refund |
 | `GET /me/tickets` · `/me/holds` · `/me/events` · `/me/staff-events` | user | Personal views |
 | `POST /checkins` | owner, staff | Scan `{qr, event_id}` and get a verdict |
+| `POST /events/{id}/waitlist` · `DELETE /waitlist/{id}` · `GET /me/waitlist` | user | Join a sold-out ticket type's line (only when it's sold out), leave it, see your place and any seat held for you |
 | `WS /ws/events/{id}?token=` | public / staff | Live seats; check-ins for staff |
 | `POST/DELETE /me/organizer-request` | user | Ask for (or withdraw a request for) organizer access |
 | `GET /admin/stats` · `GET /admin/users` · `GET /admin/events` | admin | Platform totals, searchable users (with the request queue), and every event in every state |
